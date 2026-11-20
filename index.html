@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>범용 가챠 시뮬레이터 Pro (Master Edition v4.2)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts & Pretendard -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Pretendard', 'sans-serif'],
+            display: ['Rajdhani', 'Pretendard', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    body {
+      background-color: #070a12;
+      color: #f1f5f9;
+      font-family: 'Pretendard', sans-serif;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+    /* Slider Custom Styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #1e293b;
+      border-radius: 9999px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #f59e0b;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+    }
+    @keyframes goldGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); border-color: rgba(245, 158, 11, 0.9); }
+      50% { box-shadow: 0 0 30px rgba(251, 191, 36, 1); border-color: rgba(251, 191, 36, 1); }
+    }
+    .pity-hit-glow {
+      animation: goldGlow 1.8s infinite;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-purple-600 selection:text-white">
+
+  <!-- Global Error Banner (Hidden by default, shows if unhandled error occurs) -->
+  <div id="debug-error-banner" class="hidden bg-rose-600/95 text-white text-xs px-4 py-2 font-bold text-center z-50 flex items-center justify-between">
+    <span id="debug-error-banner-text">오류가 감지되었습니다.</span>
+    <button onclick="this.parentElement.classList.add('hidden')" class="ml-2 underline text-[11px]">닫기</button>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- TOP NAVBAR -->
+  <!-- ============================================== -->
+  <header class="border-b border-gray-800/80 bg-gray-950/90 backdrop-blur-md sticky top-0 z-30 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-2.5 sm:space-x-3">
+      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-amber-500 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/25 text-lg sm:text-xl flex-shrink-0">
+        ⭐
+      </div>
+      <div>
+        <div class="flex items-center space-x-1.5">
+          <h1 class="font-display font-black text-base sm:text-lg tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-pink-200 to-purple-300">
+            GACHA SIMULATOR PRO
+          </h1>
+          <span class="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">v4.2</span>
+        </div>
+        <p class="text-[11px] text-gray-400">정밀 확률 · 소모 재화 조절 · 50:50 반천장 · 프리셋 시드(Seed) 공유</p>
+      </div>
+    </div>
+
+    <!-- Tab Buttons -->
+    <nav class="flex items-center space-x-1 bg-gray-900/90 p-1 rounded-xl border border-gray-800 text-xs sm:text-sm font-semibold">
+      <button onclick="switchTab('pull')" id="tab-btn-pull" class="px-3 py-1.5 rounded-lg transition-all text-white bg-purple-600 shadow-sm flex items-center space-x-1">
+        <span>🎲</span>
+        <span>소환</span>
+      </button>
+      <button onclick="switchTab('settings')" id="tab-btn-settings" class="px-3 py-1.5 rounded-lg transition-all text-gray-400 hover:text-gray-200 flex items-center space-x-1">
+        <span>⚙️</span>
+        <span>정밀설정/시드</span>
+      </button>
+      <button onclick="switchTab('stats')" id="tab-btn-stats" class="px-3 py-1.5 rounded-lg transition-all text-gray-400 hover:text-gray-200 flex items-center space-x-1">
+        <span>📊</span>
+        <span>통계/갤러리</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-3 sm:p-5 space-y-4">
+
+    <!-- ============================================== -->
+    <!-- TAB 1: PULL VIEW -->
+    <!-- ============================================== -->
+    <section id="tab-pull" class="space-y-4">
+      
+      <!-- 1. Real-time Quick Probability Tuner Bar -->
+      <div class="bg-gray-950/80 border border-purple-500/30 rounded-2xl p-3.5 sm:p-4 space-y-3 shadow-lg">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-gray-800/80 pb-2.5">
+          <div class="flex items-center space-x-1.5">
+            <span class="text-base">⚡</span>
+            <h2 class="text-xs sm:text-sm font-black text-amber-300">실시간 빠른 조절 (Quick Tuner)</h2>
+            <span class="text-[10px] text-gray-400">확률, 천장 및 1회당 재화 즉시 변경</span>
+          </div>
+
+          <!-- Official Style Presets & Seed Prompt -->
+          <div class="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+            <button onclick="applyDetailedPreset('genshin')" class="py-1 px-2.5 rounded-lg bg-gray-900 hover:bg-gray-800 border border-rose-900/40 text-rose-300 active:scale-95 transition-all">
+              🌟 원신 (160원석)
+            </button>
+            <button onclick="applyDetailedPreset('bluearchive')" class="py-1 px-2.5 rounded-lg bg-gray-900 hover:bg-gray-800 border border-sky-900/40 text-sky-300 active:scale-95 transition-all">
+              🔵 블루아카 (120청휘석)
+            </button>
+            <button onclick="applyDetailedPreset('standard')" class="py-1 px-2.5 rounded-lg bg-gray-900 hover:bg-gray-800 border border-purple-900/40 text-purple-300 active:scale-95 transition-all">
+              ⚖️ 표준 (160젬)
+            </button>
+            <button onclick="applyDetailedPreset('generous')" class="py-1 px-2.5 rounded-lg bg-gray-900 hover:bg-gray-800 border border-amber-900/40 text-amber-300 active:scale-95 transition-all">
+              🍯 혜자 (100다이아)
+            </button>
+            <button onclick="promptApplySeed()" class="py-1 px-2.5 rounded-lg bg-purple-950/70 hover:bg-purple-900/90 border border-purple-500/60 text-purple-200 active:scale-95 transition-all flex items-center space-x-1">
+              <span>🔑</span>
+              <span>시드 입력</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 Quick Tuning Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
+          <!-- SSR Rate -->
+          <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 space-y-1">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-300 font-semibold text-[11px]">최고등급(SSR) 확률:</span>
+              <span class="font-display font-bold text-amber-400 text-sm" id="label-tune-ssr">1.00%</span>
+            </div>
+            <input type="range" id="slider-tune-ssr" min="0.1" max="15.0" step="0.05" value="1.0" oninput="onTuneSSR(this.value)">
+          </div>
+
+          <!-- Pity Target -->
+          <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 space-y-1">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-300 font-semibold text-[11px]">확정 천장:</span>
+              <span class="font-display font-bold text-purple-400 text-sm" id="label-tune-pity">80뽑</span>
+            </div>
+            <input type="range" id="slider-tune-pity" min="10" max="200" step="1" value="80" oninput="onTunePity(this.value)">
+          </div>
+
+          <!-- Pick-up Rate -->
+          <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 space-y-1">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-300 font-semibold text-[11px]">반천장 픽업 승률:</span>
+              <span class="font-display font-bold text-emerald-400 text-sm" id="label-tune-pickup">50%</span>
+            </div>
+            <input type="range" id="slider-tune-pickup" min="10" max="95" step="1" value="50" oninput="onTunePickup(this.value)">
+          </div>
+
+          <!-- Currency Cost & Unit -->
+          <div class="bg-gray-900/60 p-2.5 rounded-xl border border-gray-800 space-y-1">
+            <div class="flex justify-between items-center">
+              <span class="text-gray-300 font-semibold text-[11px]">1회당 소모 재화:</span>
+              <span class="font-display font-bold text-sky-400 text-sm" id="label-tune-currency">160젬</span>
+            </div>
+            <div class="flex items-center space-x-1.5 pt-0.5">
+              <input type="number" id="input-quick-currency-cost" min="1" max="100000" step="10" value="160" onchange="onTuneCurrencyCost(this.value)" class="w-16 bg-gray-950 border border-gray-700 rounded-lg px-2 py-0.5 text-white font-bold text-xs text-right">
+              <input type="text" id="input-quick-currency-unit" value="젬" onchange="onTuneCurrencyUnit(this.value)" class="w-14 bg-gray-950 border border-gray-700 rounded-lg px-1.5 py-0.5 text-sky-300 font-bold text-xs text-center">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Pity Status Notification Banner -->
+      <div id="pity-loop-indicator" class="p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-all bg-amber-950/30 border-amber-500/40 text-amber-300 shadow-md">
+        <div class="flex items-center space-x-2.5">
+          <span id="pity-indicator-icon" class="text-2xl">🎲</span>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span id="pity-indicator-title" class="font-extrabold text-xs sm:text-sm">현재 상태: 1차 반천장 (50:50 승부 대기)</span>
+              <span id="pity-indicator-badge" class="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-200 font-bold">50% 승률</span>
+            </div>
+            <p id="pity-indicator-desc" class="text-[11px] text-gray-300 mt-0.5">
+              <span id="cfg-pity-target-num" class="font-bold text-white">80</span>뽑 도달 시 최고등급 확정 (50% 픽업 vs 50% 픽뚫)
+            </p>
+          </div>
+        </div>
+        <button onclick="jumpToStack(state.pity.target - 1)" class="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-xs font-bold text-amber-300 rounded-xl border border-amber-500/40 active:scale-95 transition-all self-end sm:self-auto flex-shrink-0">
+          ⚡ 천장 1뽑 전 점프
+        </button>
+      </div>
+
+      <!-- 3. Main Hero Banner Card -->
+      <div class="relative overflow-hidden rounded-3xl border border-purple-500/30 bg-gradient-to-b from-purple-950/40 via-gray-900 to-gray-950 p-4 sm:p-6 shadow-2xl">
+        <div class="absolute -top-32 -right-32 w-80 h-80 bg-purple-600/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-32 -left-32 w-80 h-80 bg-pink-600/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-5">
+          
+          <!-- Banner Left: Showcase -->
+          <div class="flex-1 space-y-3 text-center lg:text-left">
+            <div class="flex flex-wrap items-center justify-center lg:justify-start gap-2">
+              <span class="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-[11px] font-semibold">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>스페셜 픽업 소환</span>
+              </span>
+              <span id="banner-pity-status-tag" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                50:50 반천장 도전 중
+              </span>
+            </div>
+
+            <!-- Featured Character Card -->
+            <div class="flex flex-col sm:flex-row items-center gap-3.5 bg-gray-950/60 p-3.5 rounded-2xl border border-gray-800/80 backdrop-blur max-w-lg mx-auto lg:mx-0">
+              <div class="relative w-18 h-18 sm:w-20 sm:h-20 rounded-2xl overflow-hidden border-2 border-amber-400 shadow-lg shadow-amber-500/20 flex-shrink-0 bg-gray-900">
+                <img id="banner-img" src="" alt="픽업 캐릭터" class="w-full h-full object-cover">
+                <span class="absolute bottom-0 inset-x-0 bg-amber-500/95 text-black text-[8px] font-black text-center py-0.5 uppercase tracking-wider">
+                  PICK UP!
+                </span>
+              </div>
+              <div class="text-left space-y-0.5 min-w-0">
+                <div class="flex items-center space-x-1.5">
+                  <span class="px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-amber-400 text-black" id="banner-top-badge">SSR</span>
+                  <h2 id="banner-name" class="text-base sm:text-lg font-black text-white tracking-wide truncate">빛의 성녀 루시아</h2>
+                </div>
+                <p class="text-xs text-gray-300">
+                  기본 확률: <strong class="text-yellow-400 font-bold" id="banner-rate-display">1.00%</strong>
+                  <span id="soft-pity-live-badge" class="ml-1 text-[10px] text-purple-300 font-semibold"></span>
+                </p>
+                <div class="text-[11px] text-purple-300 font-medium truncate">
+                  🎯 <span id="banner-pity-target-display">80</span>회 소환 시 <strong>최고등급 100% 확정 보장</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pills -->
+            <div id="quick-rarity-pills" class="flex flex-wrap gap-1.5 justify-center lg:justify-start"></div>
+          </div>
+
+          <!-- Banner Right: Gauge Card -->
+          <div class="w-full lg:w-72 bg-gray-950/90 border border-gray-800 rounded-2xl p-4 shadow-xl backdrop-blur space-y-3">
+            <div class="flex items-center justify-between text-xs font-bold">
+              <span class="text-gray-300">천장 스택 게이지</span>
+              <span id="pity-type-badge" class="px-2 py-0.5 rounded text-[10px] bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold">
+                50:50 판정
+              </span>
+            </div>
+
+            <div>
+              <div class="flex justify-between items-baseline mb-1 text-xs">
+                <span class="text-gray-400">현재 누적</span>
+                <span class="font-display font-bold text-white">
+                  <span id="pity-val" class="text-amber-400 text-2xl font-black">0</span>
+                  <span class="text-gray-500 text-sm">/ <span id="pity-max">80</span></span>
+                </span>
+              </div>
+              <div class="w-full bg-gray-900 h-2.5 rounded-full overflow-hidden p-0.5 border border-gray-800">
+                <div id="pity-bar" class="bg-gradient-to-r from-purple-500 via-indigo-500 to-amber-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div class="p-2 rounded-xl bg-gray-900 border border-gray-800 text-[11px] flex items-center justify-between">
+              <span class="text-gray-400">천장까지:</span>
+              <span id="pity-rem-count" class="font-bold text-amber-300">80회 남음</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Pull Action Buttons (With Dynamic Currency Labels) -->
+        <div class="mt-6 pt-4 border-t border-gray-800/80 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center space-x-2 text-xs text-gray-300 select-none">
+            <label class="flex items-center space-x-1.5 cursor-pointer bg-gray-900/80 px-2.5 py-1.5 rounded-xl border border-gray-800 hover:bg-gray-800">
+              <input type="checkbox" id="chk-sr-guarantee" class="rounded text-purple-600 bg-gray-800 border-gray-700" checked onchange="state.srGuarantee=this.checked; saveState();">
+              <span>10연차 SR 확정 보장</span>
+            </label>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="executeGacha(1)" class="px-4 py-2.5 rounded-2xl bg-gray-900 hover:bg-gray-800 border border-gray-700/80 shadow font-bold text-xs sm:text-sm text-white flex items-center space-x-1.5 active:scale-95 transition-all">
+              <span>✨ 1회 소환</span>
+              <span id="btn-pull-1-cost" class="text-[10px] text-gray-400 bg-gray-950 px-1.5 py-0.2 rounded-full font-mono">160젬</span>
+            </button>
+            <button onclick="executeGacha(10)" class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-xl shadow-purple-500/25 font-black text-xs sm:text-sm text-white flex items-center space-x-1.5 active:scale-95 transition-all">
+              <span>🌟 10회 연속 소환</span>
+              <span id="btn-pull-10-cost" class="text-[10px] text-purple-200 bg-purple-950/70 px-1.5 py-0.2 rounded-full font-mono">1,600젬</span>
+            </button>
+            <button onclick="executePullUntilPity()" class="px-3.5 py-2.5 rounded-2xl bg-gray-900 hover:bg-gray-800 text-xs font-bold text-amber-400 border border-amber-500/40 active:scale-95 transition-all" title="천장 도달 시까지 즉시 소환">
+              <span>⚡ <span id="btn-pull-until-pity-text">천장까지 소환</span></span>
+              <span id="btn-pull-pity-cost" class="text-[10px] text-amber-200 bg-amber-950/70 px-1.5 py-0.2 rounded-full font-mono ml-1">12,800젬</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Stats & Live Feed -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="bg-gray-950/80 border border-gray-800 rounded-2xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs sm:text-sm font-bold text-gray-200">실시간 누적 통계</h3>
+            <button onclick="resetStatsConfirm()" class="text-[11px] text-rose-400 hover:text-rose-300 underline">초기화</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="bg-gray-900/80 p-2 rounded-xl border border-gray-800 text-center">
+              <span class="text-[10px] text-gray-400">누적 소환 수</span>
+              <p id="stat-total-pulls" class="text-base sm:text-lg font-display font-bold text-white mt-0.5">0회</p>
+            </div>
+            <div class="bg-gray-900/80 p-2 rounded-xl border border-gray-800 text-center">
+              <span class="text-[10px] text-gray-400">픽업 획득 수</span>
+              <p id="stat-pickup-count" class="text-base sm:text-lg font-display font-bold text-amber-400 mt-0.5">0회</p>
+            </div>
+            <div class="bg-gray-900/80 p-2 rounded-xl border border-gray-800 text-center">
+              <span class="text-[10px] text-sky-400">총 소모 재화</span>
+              <p id="stat-total-currency" class="text-base sm:text-lg font-display font-bold text-sky-300 mt-0.5">0젬</p>
+            </div>
+          </div>
+          <div class="space-y-2 pt-1" id="stat-rarity-breakdown-mini"></div>
+        </div>
+
+        <div class="lg:col-span-2 bg-gray-950/80 border border-gray-800 rounded-2xl p-4 flex flex-col">
+          <div class="flex items-center justify-between mb-2.5">
+            <h3 class="text-xs sm:text-sm font-bold text-gray-200">최근 소환 기록 (실시간 피드)</h3>
+            <span class="text-[10px] text-gray-400">최대 25개 표시</span>
+          </div>
+          <div id="recent-logs" class="flex-1 max-h-48 overflow-y-auto space-y-1.5 pr-1 text-xs">
+            <p class="text-gray-500 text-center py-8 text-xs">아직 소환 기록이 없습니다.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================== -->
+    <!-- TAB 2: DETAILED SETTINGS, SEED & RARITY EDITORS -->
+    <!-- ============================================== -->
+    <section id="tab-settings" class="space-y-4 hidden">
+      
+      <!-- 1. Fine-tuning Numbers -->
+      <div class="bg-gray-950/90 border border-gray-800 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
+        <div class="border-b border-gray-800 pb-3">
+          <h3 class="text-sm sm:text-base font-black text-amber-300 flex items-center gap-1.5">
+            <span>🎛️ 가챠 엔진 세부 규칙 & 소모 재화 정밀 조절</span>
+          </h3>
+          <p class="text-xs text-gray-400">천장 횟수, 1회당 소모 재화 수량/단위, 소프트 천장 가중치, 반천장 승률을 자유롭게 조절합니다.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+          <!-- Pity Target -->
+          <div class="bg-gray-900/80 p-3 rounded-2xl border border-gray-800 space-y-1">
+            <label class="block text-gray-300 font-bold">확정 천장 횟수 (N뽑)</label>
+            <input type="number" id="detail-pity-target" min="5" max="300" step="1" value="80" onchange="updateDetailedSettings()" class="w-full bg-gray-950 border border-gray-700 rounded-xl p-2 text-white font-bold">
+            <span class="text-[10px] text-gray-500">도달 시 100% 최고등급 확정</span>
+          </div>
+
+          <!-- Pickup Rate -->
+          <div class="bg-gray-900/80 p-3 rounded-2xl border border-gray-800 space-y-1">
+            <label class="block text-gray-300 font-bold">반천장 픽업 승률 (%)</label>
+            <input type="number" id="detail-pickup-rate" min="1" max="99" step="1" value="50" onchange="updateDetailedSettings()" class="w-full bg-gray-950 border border-gray-700 rounded-xl p-2 text-white font-bold">
+            <span class="text-[10px] text-gray-500">기본 50% (50:50 승부)</span>
+          </div>
+
+          <!-- Currency Cost & Unit -->
+          <div class="bg-gray-900/80 p-3 rounded-2xl border border-gray-800 space-y-1">
+            <div class="flex items-center justify-between">
+              <label class="text-gray-300 font-bold">1회 소환 재화 비용 & 단위</label>
+              <span class="text-sky-400 font-mono font-bold text-[11px]" id="badge-currency-cost-preview">160 젬</span>
+            </div>
+            <div class="flex gap-1.5">
+              <input type="number" id="detail-currency-cost" min="1" max="100000" step="10" value="160" onchange="updateDetailedSettings()" class="w-24 bg-gray-950 border border-gray-700 rounded-xl p-2 text-white font-bold text-right" placeholder="수량">
+              <input type="text" id="detail-currency-name" value="젬" onchange="updateDetailedSettings()" class="flex-1 bg-gray-950 border border-gray-700 rounded-xl p-2 text-sky-300 font-bold text-center" placeholder="단위 (젬, 원석 등)">
+            </div>
+            <span class="text-[10px] text-gray-500">소환 버튼 및 통계에 표기되는 소모 재화량</span>
+          </div>
+
+          <!-- Soft Pity Start -->
+          <div class="bg-gray-900/80 p-3 rounded-2xl border border-gray-800 space-y-1">
+            <label class="block text-gray-300 font-bold">소프트 천장 시작 스택</label>
+            <input type="number" id="detail-soft-start" min="1" max="250" step="1" value="70" onchange="updateDetailedSettings()" class="w-full bg-gray-950 border border-gray-700 rounded-xl p-2 text-white font-bold">
+            <span class="text-[10px] text-gray-500">이 횟수 이후부터 확률 점증</span>
+          </div>
+
+          <!-- Soft Pity Ramp -->
+          <div class="bg-gray-900/80 p-3 rounded-2xl border border-gray-800 space-y-1">
+            <label class="block text-gray-300 font-bold">1회당 확률 가중치 (+%)</label>
+            <input type="number" id="detail-soft-ramp" min="0.1" max="50" step="0.1" value="6.0" onchange="updateDetailedSettings()" class="w-full bg-gray-950 border border-gray-700 rounded-xl p-2 text-white font-bold">
+            <span class="text-[10px] text-gray-500">소프트 구간에서 회당 가산량</span>
+          </div>
+
+          <!-- Quick Currency Presets -->
+          <div class="bg-gray-900/80 p-3 rounded-2xl border border-gray-800 space-y-1">
+            <label class="block text-gray-300 font-bold">인기 게임 재화 원클릭 설정</label>
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              <button onclick="setCurrencyQuick(160, '원석')" class="px-2 py-1 rounded bg-gray-950 hover:bg-gray-800 text-[11px] text-rose-300 border border-rose-900/40">160 원석</button>
+              <button onclick="setCurrencyQuick(120, '청휘석')" class="px-2 py-1 rounded bg-gray-950 hover:bg-gray-800 text-[11px] text-sky-300 border border-sky-900/40">120 청휘석</button>
+              <button onclick="setCurrencyQuick(100, '다이아')" class="px-2 py-1 rounded bg-gray-950 hover:bg-gray-800 text-[11px] text-purple-300 border border-purple-900/40">100 다이아</button>
+              <button onclick="setCurrencyQuick(1, '뽑기권')" class="px-2 py-1 rounded bg-gray-950 hover:bg-gray-800 text-[11px] text-amber-300 border border-amber-900/40">1 뽑기권</button>
+            </div>
+            <span class="text-[10px] text-gray-500">클릭 시 비용과 명칭이 즉시 변경됩니다.</span>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-gray-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div class="flex items-center space-x-2">
+            <span class="text-gray-400">자연 당첨 시 천장 스택:</span>
+            <select id="detail-natural-reset" onchange="updateDetailedSettings()" class="bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-white">
+              <option value="true">리셋함 (원신/스타레일식)</option>
+              <option value="false">리셋 안 함 (정확히 N번째 보장)</option>
+            </select>
+          </div>
+          <button onclick="toggleGuaranteeState()" id="btn-toggle-guarantee" class="px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-700 text-xs font-bold text-amber-300 hover:bg-gray-800">
+            반천장 (50:50) -> 확천(100%) 전환
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Preset & Shareable Seed System -->
+      <div class="bg-gray-950/90 border border-purple-500/40 rounded-3xl p-4 sm:p-6 space-y-4 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-800 pb-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">💾</span>
+            <div>
+              <h3 class="text-xs sm:text-sm font-black text-white">프리셋 저장 & 최대 20자 초단축 시드(Seed) 공유</h3>
+              <p class="text-[11px] text-gray-400">확률, 재화, 캐릭터 전체를 20자 이내 초단축 시드(G-...)로 즉시 압축 추출 및 공유할 수 있습니다.</p>
+            </div>
+          </div>
+          <button onclick="exportCurrentSeed()" class="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-xs font-black text-white rounded-xl shadow-lg shadow-purple-500/25 active:scale-95 flex items-center space-x-1.5 self-start sm:self-auto">
+            <span>🔑</span>
+            <span>초단축 시드(최대 20자) 복사</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
+          <!-- Left: Local Browser Presets -->
+          <div class="bg-gray-900/70 p-3.5 rounded-2xl border border-gray-800 space-y-3">
+            <h4 class="font-bold text-gray-200 text-xs flex items-center gap-1.5">
+              <span>📁</span>
+              <span>브라우저 로컬 프리셋 관리</span>
+            </h4>
+            
+            <div class="space-y-1">
+              <label class="block text-gray-400 text-[11px]">현재 설정을 새 프리셋으로 저장</label>
+              <div class="flex gap-2">
+                <input type="text" id="input-new-preset-name" placeholder="프리셋 이름 (예: 원신 픽업)" class="flex-1 bg-gray-950 border border-gray-700 rounded-xl px-2.5 py-1.5 text-xs text-white">
+                <button onclick="saveCurrentPreset()" class="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 font-bold text-xs text-white rounded-xl shadow active:scale-95 flex-shrink-0">
+                  저장
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <label class="block text-gray-400 text-[11px]">저장된 캐릭터·등급 프리셋 관리</label>
+              <div class="flex gap-2">
+                <select id="select-saved-presets" onchange="onPresetSelected(this.value)" class="flex-1 bg-gray-950 border border-gray-700 rounded-xl px-2.5 py-1.5 text-xs text-white">
+                  <option value="">⚙️ 저장된 프리셋 선택...</option>
+                </select>
+                <button onclick="applySelectedPresetBtn()" class="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-500 font-bold text-xs text-white rounded-xl active:scale-95 flex-shrink-0">
+                  적용
+                </button>
+                <button onclick="exportSelectedPresetSeed()" class="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 font-bold text-xs text-amber-300 rounded-xl border border-amber-500/40 active:scale-95 flex-shrink-0" title="선택한 프리셋을 시드로 복사">
+                  시드 복사
+                </button>
+                <button onclick="deleteSelectedPreset()" class="px-2 py-1.5 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/60 font-bold text-xs text-rose-300 rounded-xl flex-shrink-0">
+                  삭제
+                </button>
+              </div>
+              <div id="preset-details-info" class="text-[10px] text-purple-300 min-h-[16px] pt-0.5"></div>
+            </div>
+          </div>
+
+          <!-- Right: Seed Code Import & Presets -->
+          <div class="bg-gray-900/70 p-3.5 rounded-2xl border border-purple-500/30 space-y-3">
+            <div class="flex items-center justify-between">
+              <h4 class="font-bold text-amber-300 text-xs flex items-center gap-1.5">
+                <span>🔑</span>
+                <span>시드(Seed) 코드 입력 및 적용</span>
+              </h4>
+              <button onclick="exportJSON()" class="text-[10px] text-gray-400 hover:text-gray-200 underline">JSON 보기</button>
+            </div>
+
+            <div class="space-y-1">
+              <label class="block text-gray-400 text-[11px]">시드 코드를 붙여넣어 프리셋 즉시 적용</label>
+              <div class="flex gap-2">
+                <input type="text" id="input-seed-code" placeholder="초단축 시드(최대 20자, 예: G-...) 또는 키워드 입력..." class="flex-1 bg-gray-950 border border-purple-500/50 rounded-xl px-2.5 py-1.5 text-xs text-amber-200 font-mono focus:outline-none focus:border-amber-400">
+                <button onclick="applyEnteredSeed()" class="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 font-black text-xs text-black rounded-xl shadow active:scale-95 flex-shrink-0">
+                  시드 적용
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-1 pt-1">
+              <span class="text-[10px] text-gray-400">⚡ 원클릭 공식 시드 불러오기:</span>
+              <div class="flex flex-wrap gap-1.5">
+                <button onclick="applyPresetSeed('genshin')" class="px-2 py-0.5 rounded bg-gray-950 hover:bg-gray-800 border border-rose-800/40 text-[10px] text-rose-300">원신 시드</button>
+                <button onclick="applyPresetSeed('bluearchive')" class="px-2 py-0.5 rounded bg-gray-950 hover:bg-gray-800 border border-sky-800/40 text-[10px] text-sky-300">블루아카 시드</button>
+                <button onclick="applyPresetSeed('standard')" class="px-2 py-0.5 rounded bg-gray-950 hover:bg-gray-800 border border-purple-800/40 text-[10px] text-purple-300">표준 시드</button>
+                <button onclick="applyPresetSeed('generous')" class="px-2 py-0.5 rounded bg-gray-950 hover:bg-gray-800 border border-amber-800/40 text-[10px] text-amber-300">혜자 시드</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Probability Total Bar Alert -->
+      <div id="prob-total-card" class="p-3.5 rounded-2xl border flex items-center justify-between bg-emerald-950/30 border-emerald-500/30 text-emerald-300 text-xs sm:text-sm">
+        <div class="flex items-center space-x-2">
+          <span class="text-base">✅</span>
+          <span class="font-medium">전체 등급 확률 총합: <strong id="prob-total-value">100.00%</strong></span>
+        </div>
+        <span class="text-xs text-emerald-400">정상적인 100% 구조입니다.</span>
+      </div>
+
+      <!-- All Rarity & Item Full Editors -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xs sm:text-sm font-black text-white">모든 등급 캐릭터 & 아이템 편집 (위치 순서 변경 · 최고등급 다중 지정)</h3>
+            <p class="text-[11px] text-gray-400">등급 위치(▲/▼) 순서 변경, 최고등급(👑) 복수 지정/해제, 이름/확률/아이템 및 사진 첨부가 가능합니다.</p>
+          </div>
+          <button onclick="addNewRarityCategory()" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-xs font-bold rounded-xl text-white shadow-sm flex items-center space-x-1 active:scale-95">
+            <span>+ 새 등급 카테고리 추가</span>
+          </button>
+        </div>
+
+        <div id="all-rarities-editor-container" class="space-y-4"></div>
+      </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- TAB 3: STATS & GALLERY -->
+    <!-- ============================================== -->
+    <section id="tab-stats" class="space-y-4 hidden">
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div class="bg-gray-950/80 border border-gray-800 p-3 rounded-2xl text-center">
+          <span class="text-xs text-gray-400">총 소환 횟수</span>
+          <p id="stats-page-total-pulls" class="text-xl font-display font-bold text-white mt-0.5">0회</p>
+        </div>
+        <div class="bg-gray-950/80 border border-gray-800 p-3 rounded-2xl text-center">
+          <span class="text-xs text-sky-400 font-bold">총 소모 재화</span>
+          <p id="stats-page-total-currency" class="text-xl font-display font-bold text-sky-400 mt-0.5">0젬</p>
+        </div>
+        <div class="bg-gray-950/80 border border-gray-800 p-3 rounded-2xl text-center">
+          <span class="text-xs text-emerald-400 font-bold">반천장 승리 (픽업)</span>
+          <p id="stats-page-pickup-wins" class="text-xl font-display font-bold text-emerald-400 mt-0.5">0회</p>
+        </div>
+        <div class="bg-gray-950/80 border border-gray-800 p-3 rounded-2xl text-center">
+          <span class="text-xs text-rose-400 font-bold">반천장 패배 (픽뚫)</span>
+          <p id="stats-page-pickup-losses" class="text-xl font-display font-bold text-rose-400 mt-0.5">0회</p>
+        </div>
+        <div class="bg-gray-950/80 border border-gray-800 p-3 rounded-2xl text-center">
+          <span class="text-xs text-amber-400 font-bold">확천으로 픽업 구제</span>
+          <p id="stats-page-guaranteed-wins" class="text-xl font-display font-bold text-amber-400 mt-0.5">0회</p>
+        </div>
+      </div>
+
+      <div class="bg-gray-950/80 border border-gray-800 p-4 rounded-2xl space-y-2.5">
+        <h3 class="text-xs sm:text-sm font-bold text-white">확률 분석표 (설정 확률 vs 실제 획득 확률)</h3>
+        <div id="stats-comparison-table-container" class="overflow-x-auto text-xs text-gray-300"></div>
+      </div>
+
+      <div class="bg-gray-950/80 border border-gray-800 p-4 rounded-2xl space-y-2.5">
+        <h3 class="text-xs sm:text-sm font-bold text-white">천장 승부 기록 (50:50 히스토리)</h3>
+        <div id="pity-history-table" class="max-h-52 overflow-y-auto text-xs"></div>
+      </div>
+
+      <div class="bg-gray-950/80 border border-gray-800 p-4 rounded-2xl space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs sm:text-sm font-bold text-white">보유 캐릭터 & 아이템 갤러리</h3>
+          <span id="gallery-count-tag" class="text-xs bg-gray-900 border border-gray-800 px-2.5 py-0.5 rounded-lg text-gray-300">총 0개</span>
+        </div>
+        <div id="gallery-grid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5 max-h-72 overflow-y-auto"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================== -->
+  <!-- FULLSCREEN PULL RESULT MODAL (소환 완료 팝업) -->
+  <!-- ============================================== -->
+  <div id="pull-result-modal" onclick="if(event.target === this) closePullModal()" class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/90 backdrop-blur-md hidden opacity-0 transition-opacity duration-300">
+    <div class="relative w-full max-w-4xl bg-gray-950 border border-gray-800 rounded-3xl p-5 sm:p-7 shadow-2xl flex flex-col max-h-[92vh] overflow-hidden" onclick="event.stopPropagation()">
+      <!-- Glow -->
+      <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-96 h-96 bg-purple-600/25 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between border-b border-gray-800 pb-3 mb-3 z-10">
+        <div>
+          <span id="modal-pull-type-badge" class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">소환 결과</span>
+          <h3 class="text-lg sm:text-xl font-black text-white mt-0.5 flex items-center gap-2">
+            <span>소환 완료!</span>
+            <span id="modal-ssr-count-badge" class="hidden text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40"></span>
+          </h3>
+        </div>
+        <button onclick="closePullModal()" class="w-8 h-8 rounded-full bg-gray-900 hover:bg-gray-800 border border-gray-700 text-gray-400 hover:text-white flex items-center justify-center text-sm">
+          ✕
+        </button>
+      </div>
+
+      <!-- 50:50 Result Banner in Modal -->
+      <div id="modal-verdict-box" class="hidden p-3 rounded-2xl border text-xs sm:text-sm mb-3 z-10"></div>
+
+      <!-- Modal Cards Container -->
+      <div id="modal-cards-grid" class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 p-1 z-10"></div>
+
+      <!-- Modal Footer Buttons -->
+      <div class="mt-4 pt-3 border-t border-gray-800 flex items-center justify-center gap-2.5 z-10">
+        <button onclick="closePullModal()" class="px-5 py-2.5 rounded-xl bg-gray-900 hover:bg-gray-800 border border-gray-700 text-xs sm:text-sm font-bold text-gray-300 active:scale-95">
+          확인 및 닫기
+        </button>
+        <button onclick="repeatLastGacha()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 text-xs sm:text-sm font-black text-white shadow-lg shadow-purple-500/25 active:scale-95">
+          한 번 더 소환 🎲
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="border-t border-gray-900/80 py-3.5 text-center text-xs text-gray-600">
+    Universal Gacha Simulator Pro • 세세한 정밀 조절 & 무결점 소환 엔진
+  </footer>
+
+  <!-- ============================================== -->
+  <!-- JAVASCRIPT MASTER ROBUST ENGINE -->
+  <!-- ============================================== -->
+  <script>
+    // Global Error Safety
+    window.onerror = function(msg, url, line) {
+      console.error('Sim Error:', msg, line);
+      const b = document.getElementById('debug-error-banner');
+      const t = document.getElementById('debug-error-banner-text');
+      if (b && t) {
+        t.textContent = `[안내] 실행 중 알림: ${msg} (줄: ${line})`;
+        b.classList.remove('hidden');
+      }
+    };
+
+    // Safe DOM Helpers
+    function $(id) { return document.getElementById(id); }
+    function safeText(id, text) { const el = $(id); if (el) el.textContent = text; }
+    function safeHtml(id, html) { const el = $(id); if (el) el.innerHTML = html; }
+    function safeVal(id, val) { const el = $(id); if (el) el.value = val; }
+    function safeTime(ts) {
+      if (!ts) return '-';
+      try {
+        const d = new Date(ts);
+        if (isNaN(d.getTime())) return '-';
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return '-';
+      }
+    }
+
+    // ==========================================
+    // 20-CHAR ULTRA-COMPACT SEED ENGINE & PRESET REGISTRY
+    // ==========================================
+    const CURRENCY_UNITS = ['젬', '원석', '청휘석', '다이아', '코인', '티켓', '크리스탈', '골드'];
+
+    function getSeedRegistry() {
+      try {
+        const raw = localStorage.getItem('gacha_seed_registry_v2');
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveSeedToRegistry(seedCode, fullPresetData) {
+      if (!seedCode || !fullPresetData) return;
+      try {
+        const reg = getSeedRegistry();
+        const cleanKey = seedCode.trim().toUpperCase();
+        reg[cleanKey] = JSON.parse(JSON.stringify(fullPresetData));
+        localStorage.setItem('gacha_seed_registry_v2', JSON.stringify(reg));
+      } catch (e) {}
+    }
+
+    // Packs gacha parameters into a deterministic, <= 18-character Base36 string
+    function packToShortSeed(data) {
+      const p = data.pity || {};
+      const s = data.softPity || {};
+      const c = data.currency || {};
+      const rarities = data.rarities || [];
+
+      const pityTarget = BigInt(Math.min(999, Math.max(1, parseInt(p.target, 10) || 80)));
+      const ssrRate = BigInt(Math.min(10000, Math.max(0, Math.round((parseFloat(rarities[0]?.rate) || 1.0) * 100))));
+      const srRate = BigInt(Math.min(10000, Math.max(0, Math.round((parseFloat(rarities[1]?.rate) || 9.0) * 100))));
+      const cost = BigInt(Math.min(9999, Math.max(1, parseInt(c.cost, 10) || 160)));
+      const softStart = BigInt(Math.min(999, Math.max(0, parseInt(s.start, 10) || 70)));
+      const softRamp = BigInt(Math.min(500, Math.max(0, Math.round((parseFloat(s.ramp) || 6.0) * 10))));
+      const pickupRate = BigInt(Math.min(100, Math.max(0, Math.round(parseFloat(data.pickUpRate) || 50))));
+
+      const unitIdx = CURRENCY_UNITS.indexOf(((c.unit || '젬') + '').trim());
+      const unitCode = unitIdx !== -1 ? unitIdx : 0;
+
+      let flags = 0;
+      if (data.srGuarantee !== false) flags |= 1;
+      if (s.enabled !== false) flags |= 2;
+      if (p.resetOnNatural !== false) flags |= 4;
+      flags |= (unitCode & 7) << 3;
+      const bigFlags = BigInt(flags);
+
+      let n = 0n;
+      n = (n << 10n) | pityTarget;
+      n = (n << 14n) | ssrRate;
+      n = (n << 14n) | srRate;
+      n = (n << 14n) | cost;
+      n = (n << 10n) | softStart;
+      n = (n << 9n)  | softRamp;
+      n = (n << 7n)  | pickupRate;
+      n = (n << 6n)  | bigFlags;
+
+      return 'G-' + n.toString(36).toUpperCase();
+    }
+
+    // Unpacks an 18-char Base36 seed back into exact numerical parameters
+    function unpackShortSeed(codeStr) {
+      let clean = codeStr.trim().toUpperCase();
+      if (clean.startsWith('G-')) clean = clean.substring(2);
+      else if (clean.startsWith('G1-')) clean = clean.substring(3);
+      else if (clean.startsWith('G')) clean = clean.substring(1);
+
+      const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      let n = 0n;
+      for (let i = 0; i < clean.length; i++) {
+        const v = chars.indexOf(clean[i]);
+        if (v === -1) throw new Error('유효하지 않은 시드 코드입니다: ' + clean[i]);
+        n = n * 36n + BigInt(v);
+      }
+
+      const flags = Number(n & 63n); n >>= 6n;
+      const pickupRate = Number(n & 127n); n >>= 7n;
+      const softRamp = Number(n & 511n) / 10; n >>= 9n;
+      const softStart = Number(n & 1023n); n >>= 10n;
+      const cost = Number(n & 16383n); n >>= 14n;
+      const srRate = Number(n & 16383n) / 100; n >>= 14n;
+      const ssrRate = Number(n & 16383n) / 100; n >>= 14n;
+      const pityTarget = Number(n & 1023n);
+
+      const srGuarantee = (flags & 1) !== 0;
+      const softPityEnabled = (flags & 2) !== 0;
+      const resetOnNatural = (flags & 4) !== 0;
+      const unitIdx = (flags >> 3) & 7;
+      const unit = CURRENCY_UNITS[unitIdx] || '젬';
+
+      return {
+        pity: {
+          target: pityTarget || 80,
+          resetOnNatural: resetOnNatural
+        },
+        softPity: {
+          enabled: softPityEnabled,
+          start: softStart || 70,
+          ramp: softRamp || 6.0
+        },
+        currency: {
+          cost: cost || 160,
+          unit: unit
+        },
+        pickUpRate: pickupRate || 50,
+        srGuarantee: srGuarantee,
+        ssrRate: ssrRate,
+        srRate: srRate
+      };
+    }
+
+    function shortSeedToFullState(unpacked, nameHint) {
+      const baseRarities = (state && state.rarities && state.rarities.length >= 3)
+        ? state.rarities
+        : DEFAULT_MASTER_STATE.rarities;
+      const rarities = JSON.parse(JSON.stringify(baseRarities));
+
+      if (rarities[0]) rarities[0].rate = unpacked.ssrRate;
+      if (rarities[1]) rarities[1].rate = unpacked.srRate;
+      if (rarities[2]) rarities[2].rate = Math.max(0, +(100 - unpacked.ssrRate - unpacked.srRate).toFixed(2));
+
+      return {
+        name: nameHint || '초단축 시드 프리셋',
+        pity: {
+          target: unpacked.pity.target,
+          count: 0,
+          isGuaranteedPickup: false,
+          resetOnNatural: unpacked.pity.resetOnNatural
+        },
+        softPity: {
+          enabled: unpacked.softPity.enabled,
+          start: unpacked.softPity.start,
+          ramp: unpacked.softPity.ramp
+        },
+        currency: {
+          cost: unpacked.currency.cost,
+          unit: unpacked.currency.unit
+        },
+        pickUpRate: unpacked.pickUpRate,
+        srGuarantee: unpacked.srGuarantee,
+        rarities: rarities
+      };
+    }
+
+    function presetToData(p) {
+      const baseRarities = (state && state.rarities && state.rarities.length >= 3)
+        ? state.rarities
+        : DEFAULT_MASTER_STATE.rarities;
+      const rarities = JSON.parse(JSON.stringify(baseRarities));
+      if (rarities[0]) rarities[0].rate = p.ssrRate;
+      if (rarities[1]) rarities[1].rate = p.srRate;
+      if (rarities[2]) rarities[2].rate = Math.max(0, +(100 - p.ssrRate - p.srRate).toFixed(2));
+
+      return {
+        name: p.name,
+        pity: { target: p.pityTarget, count: 0, isGuaranteedPickup: false, resetOnNatural: true },
+        softPity: { enabled: (p.softStart < p.pityTarget), start: p.softStart, ramp: p.softRamp },
+        currency: { cost: p.currencyCost || 160, unit: p.currencyUnit || '젬' },
+        pickUpRate: p.pickupRate || 50.0,
+        srGuarantee: p.srGuarantee !== false,
+        rarities: rarities
+      };
+    }
+
+    // Core synchronous Seed Generator (<= 18 chars)
+    function generateSeed(data) {
+      const shortCode = packToShortSeed(data);
+      saveSeedToRegistry(shortCode, data);
+      if (data.name) {
+        saveSeedToRegistry(data.name, data);
+      }
+      return shortCode;
+    }
+
+    // Core synchronous Seed Parser (Supports <= 20 char seeds, named aliases, and legacy base64/JSON)
+    function parseSeed(seedStr) {
+      if (!seedStr) throw new Error('시드 코드를 입력해주세요.');
+      let clean = seedStr.trim();
+      const upper = clean.toUpperCase();
+
+      // 1. Look up in local preset registry
+      const reg = getSeedRegistry();
+      if (reg[upper]) return JSON.parse(JSON.stringify(reg[upper]));
+      if (reg[clean]) return JSON.parse(JSON.stringify(reg[clean]));
+
+      // 2. Built-in keywords
+      if (upper === 'GENSHIN' || clean === '원신' || clean === '스타레일') return presetToData(DETAILED_PRESETS.genshin);
+      if (upper === 'BLUEARCH' || clean === '블루아카' || clean === '블루아카이브') return presetToData(DETAILED_PRESETS.bluearchive);
+      if (upper === 'STANDARD' || clean === '표준' || clean === '기본') return presetToData(DETAILED_PRESETS.standard);
+      if (upper === 'GENEROUS' || clean === '혜자' || clean === '대박') return presetToData(DETAILED_PRESETS.generous);
+
+      // 3. Saved User Presets
+      if (typeof getUserPresets === 'function') {
+        const presets = getUserPresets();
+        if (presets[clean]) return JSON.parse(JSON.stringify(presets[clean]));
+      }
+
+      // 4. 18-Character Ultra-Compact Seed (G-...)
+      if (upper.startsWith('G-') || (upper.length <= 20 && /^[A-Z0-9\-]+$/.test(upper))) {
+        const unpacked = unpackShortSeed(upper);
+        return shortSeedToFullState(unpacked, '시드: ' + upper);
+      }
+
+      // 5. Raw JSON
+      if (clean.startsWith('{')) {
+        return JSON.parse(clean);
+      }
+
+      // 6. Legacy Base64 seed (GSEED- or raw Base64)
+      if (clean.startsWith('GSEED-')) {
+        clean = clean.substring(6);
+      }
+      const jsonStr = decodeURIComponent(Array.prototype.map.call(atob(clean), function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonStr);
+    }
+
+    const DEFAULT_MASTER_STATE = {
+      pity: {
+        target: 80,
+        count: 0,
+        isGuaranteedPickup: false,
+        resetOnNatural: true
+      },
+      softPity: {
+        enabled: true,
+        start: 70,
+        ramp: 6.0
+      },
+      currency: {
+        cost: 160,
+        unit: '젬'
+      },
+      pickUpRate: 50.0,
+      srGuarantee: true,
+      stats: {
+        total: 0,
+        pickupWins: 0,
+        pickupLosses: 0,
+        guaranteedWins: 0,
+        pityHits: 0,
+        pityLog: [],
+        itemCounts: {},
+        history: []
+      },
+      rarities: [
+        {
+          id: 'ssr',
+          name: 'SSR',
+          rate: 1.0,
+          color: '#f59e0b',
+          items: [
+            { id: '1', name: '빛의 성녀 루시아', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80', isFeatured: true },
+            { id: '2', name: '칠흑의 기사 바알', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80', isFeatured: false },
+            { id: '3', name: '대마도사 카밀라', img: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=400&q=80', isFeatured: false }
+          ]
+        },
+        {
+          id: 'sr',
+          name: 'SR',
+          rate: 9.0,
+          color: '#a855f7',
+          items: [
+            { id: '4', name: '미스릴 레이피어', img: 'https://images.unsplash.com/photo-1589241062272-c0a000072dfa?auto=format&fit=crop&w=400&q=80', isFeatured: false },
+            { id: '5', name: '정령의 은빛 활', img: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=400&q=80', isFeatured: false }
+          ]
+        },
+        {
+          id: 'r',
+          name: 'R',
+          rate: 90.0,
+          color: '#3b82f6',
+          items: [
+            { id: '6', name: '용병의 녹슨 칼', img: 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=400&q=80', isFeatured: false },
+            { id: '7', name: '하급 생명 물약', img: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?auto=format&fit=crop&w=400&q=80', isFeatured: false }
+          ]
+        }
+      ]
+    };
+
+    // Deep State Sanitization
+    let state = null;
+    try {
+      const saved = localStorage.getItem('gacha_master_state_v5');
+      state = saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      state = null;
+    }
+
+    if (!state || typeof state !== 'object') {
+      state = JSON.parse(JSON.stringify(DEFAULT_MASTER_STATE));
+    }
+    if (!state.pity || typeof state.pity !== 'object') {
+      state.pity = { target: 80, count: 0, isGuaranteedPickup: false, resetOnNatural: true };
+    }
+    state.pity.target = parseInt(state.pity.target, 10) || 80;
+    state.pity.count = parseInt(state.pity.count, 10) || 0;
+    state.pity.isGuaranteedPickup = !!state.pity.isGuaranteedPickup;
+    state.pity.resetOnNatural = state.pity.resetOnNatural !== false;
+
+    if (!state.softPity || typeof state.softPity !== 'object') {
+      state.softPity = { enabled: true, start: 70, ramp: 6.0 };
+    }
+    state.softPity.start = parseInt(state.softPity.start, 10) || 70;
+    state.softPity.ramp = parseFloat(state.softPity.ramp) || 6.0;
+    state.softPity.enabled = state.softPity.enabled !== false;
+
+    // Currency Sanitization
+    if (!state.currency || typeof state.currency !== 'object') {
+      state.currency = { cost: 160, unit: '젬' };
+    }
+    state.currency.cost = Math.max(1, parseInt(state.currency.cost, 10) || 160);
+    state.currency.unit = (state.currency.unit && typeof state.currency.unit === 'string') ? state.currency.unit.trim() : '젬';
+
+    state.pickUpRate = (typeof state.pickUpRate === 'number' && !isNaN(state.pickUpRate)) ? state.pickUpRate : 50.0;
+    state.srGuarantee = (typeof state.srGuarantee === 'boolean') ? state.srGuarantee : true;
+
+    if (!state.stats || typeof state.stats !== 'object') {
+      state.stats = { total: 0, pickupWins: 0, pickupLosses: 0, guaranteedWins: 0, pityHits: 0, pityLog: [], itemCounts: {}, history: [] };
+    }
+    state.stats.total = parseInt(state.stats.total, 10) || 0;
+    state.stats.pickupWins = parseInt(state.stats.pickupWins, 10) || 0;
+    state.stats.pickupLosses = parseInt(state.stats.pickupLosses, 10) || 0;
+    state.stats.guaranteedWins = parseInt(state.stats.guaranteedWins, 10) || 0;
+    state.stats.pityHits = parseInt(state.stats.pityHits, 10) || 0;
+    if (!Array.isArray(state.stats.pityLog)) state.stats.pityLog = [];
+    if (!state.stats.itemCounts || typeof state.stats.itemCounts !== 'object') state.stats.itemCounts = {};
+    if (!Array.isArray(state.stats.history)) state.stats.history = [];
+
+    if (!Array.isArray(state.rarities) || state.rarities.length === 0) {
+      state.rarities = JSON.parse(JSON.stringify(DEFAULT_MASTER_STATE.rarities));
+    }
+    // Deep sanitize rarities and items
+    state.rarities.forEach((r, idx) => {
+      if (!r.id) r.id = (idx === 0 ? 'ssr' : (idx === 1 ? 'sr' : (idx === 2 ? 'r' : 'rarity_' + idx)));
+      if (!r.name) r.name = (idx === 0 ? 'SSR' : (idx === 1 ? 'SR' : (idx === 2 ? 'R' : '등급 ' + (idx + 1))));
+      r.rate = parseFloat(r.rate) || 0;
+      if (!r.color) r.color = (idx === 0 ? '#f59e0b' : (idx === 1 ? '#a855f7' : '#3b82f6'));
+      if (typeof r.isTopTier !== 'boolean') {
+        r.isTopTier = (idx === 0);
+      }
+      if (!Array.isArray(r.items) || r.items.length === 0) {
+        r.items = [
+          {
+            id: 'item_' + idx + '_1',
+            name: `${r.name} 대표 캐릭터`,
+            img: (idx === 0 ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80' : 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=400&q=80'),
+            isFeatured: (idx === 0)
+          }
+        ];
+      } else {
+        r.items.forEach((it, iIdx) => {
+          if (!it.id) it.id = `item_${idx}_${iIdx}`;
+          if (!it.name) it.name = `${r.name} 아이템 ${iIdx + 1}`;
+          if (!it.img) it.img = 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=400&q=80';
+          it.isFeatured = !!it.isFeatured;
+        });
+      }
+    });
+
+    // Ensure at least one top tier exists
+    const hasAnyTop = state.rarities.some(r => r.isTopTier === true);
+    if (!hasAnyTop && state.rarities.length > 0) {
+      state.rarities[0].isTopTier = true;
+    }
+
+    let lastPullCount = 10;
+
+    function isTopTierRarity(r) {
+      if (!r) return false;
+      if (typeof r.isTopTier === 'boolean') return r.isTopTier;
+      return (state.rarities && state.rarities[0] && state.rarities[0].id === r.id);
+    }
+
+    function getTopRarities() {
+      if (!state.rarities || state.rarities.length === 0) return [];
+      const topList = state.rarities.filter(r => r.isTopTier === true);
+      return topList.length > 0 ? topList : [state.rarities[0]];
+    }
+
+    function toggleRarityTopTier(rIdx) {
+      if (!state.rarities[rIdx]) return;
+      const current = isTopTierRarity(state.rarities[rIdx]);
+      const willBeTop = !current;
+
+      // Disallow untoggling if this is the ONLY top tier
+      if (!willBeTop) {
+        const otherTops = state.rarities.filter((r, idx) => idx !== rIdx && isTopTierRarity(r));
+        if (otherTops.length === 0) {
+          alert('최소 1개 이상의 등급이 최고등급(👑)이어야 합니다.');
+          return;
+        }
+      }
+
+      state.rarities[rIdx].isTopTier = willBeTop;
+      triggerHaptic('light');
+      saveState();
+      syncFormValues();
+      renderSettingsView();
+      renderPullView();
+    }
+
+    function moveRarity(rIdx, direction) {
+      const targetIdx = rIdx + direction;
+      if (targetIdx < 0 || targetIdx >= state.rarities.length) return;
+      triggerHaptic('light');
+      const temp = state.rarities[rIdx];
+      state.rarities[rIdx] = state.rarities[targetIdx];
+      state.rarities[targetIdx] = temp;
+      saveState();
+      syncFormValues();
+      renderSettingsView();
+      renderPullView();
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem('gacha_master_state_v5', JSON.stringify(state));
+      } catch (e) {}
+    }
+
+    // Completely Safe Haptics
+    function triggerHaptic(type = 'light') {
+      try {
+        if (typeof window !== 'undefined' && window.navigator && typeof window.navigator.vibrate === 'function') {
+          if (type === 'ssr') window.navigator.vibrate([100, 50, 100, 50, 200]);
+          else if (type === 'medium') window.navigator.vibrate(50);
+          else window.navigator.vibrate(20);
+        }
+      } catch (e) {
+        // Suppress vibration errors on mobile webviews/safari
+      }
+    }
+
+    function switchTab(tab) {
+      triggerHaptic('light');
+      ['pull', 'settings', 'stats'].forEach(t => {
+        const sec = $(`tab-${t}`);
+        const btn = $(`tab-btn-${t}`);
+        if (sec) sec.classList.toggle('hidden', t !== tab);
+        if (btn) {
+          btn.className = (t === tab)
+            ? 'px-3 py-1.5 rounded-lg transition-all text-white bg-purple-600 shadow-sm flex items-center space-x-1'
+            : 'px-3 py-1.5 rounded-lg transition-all text-gray-400 hover:text-gray-200 flex items-center space-x-1';
+        }
+      });
+      if (tab === 'pull') renderPullView();
+      if (tab === 'settings') renderSettingsView();
+      if (tab === 'stats') renderStatsView();
+    }
+
+    // ==========================================
+    // DETAILED PRESETS & TUNER
+    // ==========================================
+    const DETAILED_PRESETS = {
+      genshin: {
+        name: '원신·스타레일',
+        ssrRate: 0.6,
+        srRate: 5.1,
+        pityTarget: 90,
+        softStart: 74,
+        softRamp: 6.0,
+        pickupRate: 50.0,
+        srGuarantee: true,
+        currencyCost: 160,
+        currencyUnit: '원석'
+      },
+      bluearchive: {
+        name: '블루 아카이브',
+        ssrRate: 3.0,
+        srRate: 18.5,
+        pityTarget: 200,
+        softStart: 200,
+        softRamp: 0.0,
+        pickupRate: 50.0,
+        srGuarantee: true,
+        currencyCost: 120,
+        currencyUnit: '청휘석'
+      },
+      standard: {
+        name: '표준 가챠 (1%)',
+        ssrRate: 1.0,
+        srRate: 9.0,
+        pityTarget: 80,
+        softStart: 70,
+        softRamp: 6.0,
+        pickupRate: 50.0,
+        srGuarantee: true,
+        currencyCost: 160,
+        currencyUnit: '젬'
+      },
+      generous: {
+        name: '혜자 가챠 (5%)',
+        ssrRate: 5.0,
+        srRate: 20.0,
+        pityTarget: 40,
+        softStart: 30,
+        softRamp: 10.0,
+        pickupRate: 60.0,
+        srGuarantee: true,
+        currencyCost: 100,
+        currencyUnit: '다이아'
+      }
+    };
+
+    function applyDetailedPreset(key) {
+      const p = DETAILED_PRESETS[key];
+      if (!p) return;
+      triggerHaptic('medium');
+
+      state.rarities[0].rate = p.ssrRate;
+      if (state.rarities[1]) state.rarities[1].rate = p.srRate;
+      if (state.rarities[2]) state.rarities[2].rate = Math.max(0, 100 - p.ssrRate - p.srRate);
+
+      state.pity.target = p.pityTarget;
+      state.softPity.start = p.softStart;
+      state.softPity.ramp = p.softRamp;
+      state.pickUpRate = p.pickupRate;
+      state.srGuarantee = p.srGuarantee;
+
+      if (p.currencyCost) state.currency.cost = p.currencyCost;
+      if (p.currencyUnit) state.currency.unit = p.currencyUnit;
+
+      saveState();
+      syncFormValues();
+      renderPullView();
+    }
+
+    function syncFormValues() {
+      const topList = getTopRarities();
+      const firstTop = topList[0] || state.rarities[0];
+      const topRateSum = topList.reduce((s, r) => s + (parseFloat(r.rate) || 0), 0);
+
+      safeVal('slider-tune-ssr', firstTop ? firstTop.rate : 1.0);
+      safeVal('slider-tune-pity', state.pity.target);
+      safeVal('slider-tune-pickup', state.pickUpRate);
+
+      const topNames = topList.map(r => r.name).join('+');
+      safeText('label-tune-ssr', `${topRateSum.toFixed(2)}% (${topNames})`);
+      safeText('label-tune-pity', `${state.pity.target}뽑`);
+      safeText('label-tune-pickup', `${state.pickUpRate}%`);
+
+      safeVal('input-quick-currency-cost', state.currency.cost);
+      safeVal('input-quick-currency-unit', state.currency.unit);
+      safeText('label-tune-currency', `${state.currency.cost.toLocaleString()}${state.currency.unit}`);
+
+      safeVal('detail-pity-target', state.pity.target);
+      safeVal('detail-pickup-rate', state.pickUpRate);
+      safeVal('detail-currency-cost', state.currency.cost);
+      safeVal('detail-currency-name', state.currency.unit);
+      safeText('badge-currency-cost-preview', `${state.currency.cost.toLocaleString()} ${state.currency.unit}`);
+
+      safeVal('detail-soft-start', state.softPity.start);
+      safeVal('detail-soft-ramp', state.softPity.ramp);
+      safeVal('detail-natural-reset', state.pity.resetOnNatural ? 'true' : 'false');
+
+      const chkSr = $('chk-sr-guarantee');
+      if (chkSr) chkSr.checked = !!state.srGuarantee;
+
+      const btn = $('btn-toggle-guarantee');
+      if (btn) {
+        if (state.pity.isGuaranteedPickup) {
+          btn.textContent = '현재: 확천 (100% 픽업 확정) -> 클릭 시 반천장 전환';
+          btn.className = 'px-3 py-1.5 rounded-xl bg-emerald-950 border border-emerald-500 text-xs font-bold text-emerald-300';
+        } else {
+          btn.textContent = '현재: 반천장 (50:50) -> 클릭 시 확천 전환';
+          btn.className = 'px-3 py-1.5 rounded-xl bg-gray-900 border border-gray-700 text-xs font-bold text-amber-300 hover:bg-gray-800';
+        }
+      }
+    }
+
+    function onTuneSSR(val) {
+      const num = parseFloat(val) || 1.0;
+      const topList = getTopRarities();
+      if (topList.length > 0) {
+        topList[0].rate = num;
+      } else if (state.rarities[0]) {
+        state.rarities[0].rate = num;
+      }
+      checkTotalProbability();
+      saveState();
+      syncFormValues();
+      renderPullView();
+      triggerHaptic('light');
+    }
+      safeText('banner-rate-display', `${num.toFixed(2)}%`);
+      renderPullView();
+      triggerHaptic('light');
+    }
+
+    function onTunePity(val) {
+      const num = parseInt(val, 10) || 80;
+      state.pity.target = num;
+      saveState();
+      safeText('label-tune-pity', `${num}뽑`);
+      renderPullView();
+      triggerHaptic('light');
+    }
+
+    function onTunePickup(val) {
+      const num = parseFloat(val) || 50.0;
+      state.pickUpRate = num;
+      saveState();
+      safeText('label-tune-pickup', `${num}%`);
+      renderPullView();
+      triggerHaptic('light');
+    }
+
+    function onTuneCurrencyCost(val) {
+      const num = Math.max(1, parseInt(val, 10) || 160);
+      state.currency.cost = num;
+      saveState();
+      syncFormValues();
+      renderPullView();
+      triggerHaptic('light');
+    }
+
+    function onTuneCurrencyUnit(val) {
+      state.currency.unit = (val || '젬').trim() || '젬';
+      saveState();
+      syncFormValues();
+      renderPullView();
+    }
+
+    function setCurrencyQuick(cost, unit) {
+      state.currency.cost = cost;
+      state.currency.unit = unit;
+      saveState();
+      syncFormValues();
+      renderPullView();
+      triggerHaptic('light');
+    }
+
+    function updateDetailedSettings() {
+      const pTarget = $('detail-pity-target');
+      const pRate = $('detail-pickup-rate');
+      const cCost = $('detail-currency-cost');
+      const cName = $('detail-currency-name');
+      const sStart = $('detail-soft-start');
+      const sRamp = $('detail-soft-ramp');
+      const nat = $('detail-natural-reset');
+
+      if (pTarget) state.pity.target = parseInt(pTarget.value, 10) || 80;
+      if (pRate) state.pickUpRate = parseFloat(pRate.value) || 50.0;
+      if (cCost) state.currency.cost = Math.max(1, parseInt(cCost.value, 10) || 160);
+      if (cName) state.currency.unit = (cName.value || '젬').trim() || '젬';
+      if (sStart) state.softPity.start = parseInt(sStart.value, 10) || 70;
+      if (sRamp) state.softPity.ramp = parseFloat(sRamp.value) || 6.0;
+      if (nat) state.pity.resetOnNatural = (nat.value === 'true');
+
+      saveState();
+      syncFormValues();
+      renderPullView();
+    }
+
+    // ==========================================
+    // PRESET STORAGE & SEED SYSTEM
+    // ==========================================
+    function getUserPresets() {
+      try {
+        return JSON.parse(localStorage.getItem('gacha_user_custom_presets_v5') || '{}');
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveUserPresets(presets) {
+      try {
+        localStorage.setItem('gacha_user_custom_presets_v5', JSON.stringify(presets));
+      } catch (e) {}
+      renderPresetDropdown();
+    }
+
+    function renderPresetDropdown() {
+      const select = $('select-saved-presets');
+      if (!select) return;
+      const presets = getUserPresets();
+      
+      let html = '<option value="">⚙️ 저장된 프리셋 선택...</option>';
+      const keys = Object.keys(presets);
+      if (keys.length === 0) {
+        html += '<option value="" disabled>저장된 프리셋이 없습니다</option>';
+      } else {
+        keys.forEach(k => {
+          html += `<option value="${k}">📁 ${k}</option>`;
+        });
+      }
+      select.innerHTML = html;
+    }
+
+    function saveCurrentPreset() {
+      const input = $('input-new-preset-name');
+      if (!input) return;
+      const name = (input.value || '').trim();
+      if (!name) {
+        alert('프리셋 이름을 입력해 주세요.');
+        return;
+      }
+      const presets = getUserPresets();
+      presets[name] = {
+        pity: { ...state.pity },
+        softPity: { ...state.softPity },
+        currency: { ...state.currency },
+        pickUpRate: state.pickUpRate,
+        srGuarantee: state.srGuarantee,
+        rarities: JSON.parse(JSON.stringify(state.rarities))
+      };
+      saveUserPresets(presets);
+      input.value = '';
+      alert(`'${name}' 프리셋이 성공적으로 저장되었습니다!`);
+    }
+
+    function onPresetSelected(name) {
+      const info = $('preset-details-info');
+      if (!name) {
+        if (info) info.textContent = '';
+        return;
+      }
+      const presets = getUserPresets();
+      const p = presets[name];
+      if (!p) return;
+      const rCount = (p.rarities || []).length;
+      const iCount = (p.rarities || []).reduce((s, r) => s + (r.items ? r.items.length : 0), 0);
+      const pity = (p.pity ? p.pity.target : 80);
+      const curr = (p.currency ? `${p.currency.cost}${p.currency.unit}` : '160젬');
+      if (info) {
+        info.innerHTML = `✨ <strong>${rCount}개 등급 · 총 ${iCount}개 캐릭터/아이템</strong> (${pity}뽑 천장 · 1회당 ${curr})`;
+      }
+    }
+
+    function applySelectedPresetBtn() {
+      const select = $('select-saved-presets');
+      if (!select || !select.value) {
+        alert('불러올 프리셋을 선택해 주세요.');
+        return;
+      }
+      loadSelectedPreset(select.value);
+    }
+
+    function exportSelectedPresetSeed() {
+      const select = $('select-saved-presets');
+      if (!select || !select.value) {
+        alert('시드를 추출할 프리셋을 목록에서 먼저 선택해 주세요.');
+        return;
+      }
+      const presets = getUserPresets();
+      const p = presets[select.value];
+      if (!p) return;
+      const seedPayload = {
+        name: select.value,
+        pity: { ...p.pity },
+        softPity: { ...p.softPity },
+        currency: { ...(p.currency || state.currency) },
+        pickUpRate: p.pickUpRate || state.pickUpRate,
+        srGuarantee: p.srGuarantee,
+        rarities: JSON.parse(JSON.stringify(p.rarities))
+      };
+      const seed = generateSeed(seedPayload);
+      const input = $('input-seed-code');
+      if (input) input.value = seed;
+
+      const charCount = p.rarities.reduce((s, r) => s + (r.items ? r.items.length : 0), 0);
+      const msg = `🎉 [${select.value}] 초단축 프리셋 시드가 복사되었습니다!\n\n• 시드 코드: ${seed} (${seed.length}자, 최대 20자 이내)\n• 등급/캐릭터: ${p.rarities.length}개 등급, ${charCount}명 캐릭터\n• 소모 재화: 1회당 ${(p.currency || state.currency).cost} ${(p.currency || state.currency).unit}`;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(seed).then(() => {
+          alert(msg);
+        }).catch(() => {
+          prompt(`[${select.value}] 초단축 시드 코드 (${seed.length}자):`, seed);
+        });
+      } else {
+        prompt(`[${select.value}] 초단축 시드 코드 (${seed.length}자):`, seed);
+      }
+    }
+
+    function loadSelectedPreset(name) {
+      if (!name) return;
+      const presets = getUserPresets();
+      const p = presets[name];
+      if (!p) return;
+
+      if (confirm(`'${name}' 프리셋을 불러오시겠습니까?\n(${p.rarities.length}개 등급, ${p.rarities.reduce((s, r) => s + (r.items ? r.items.length : 0), 0)}개 캐릭터/아이템 포함)`)) {
+        state.pity = { ...p.pity };
+        state.softPity = p.softPity || { enabled: true, start: 70, ramp: 6.0 };
+        if (p.currency) {
+          state.currency = {
+            cost: Math.max(1, parseInt(p.currency.cost, 10) || 160),
+            unit: p.currency.unit || '젬'
+          };
+        }
+        state.pickUpRate = p.pickUpRate || 50.0;
+        state.srGuarantee = (typeof p.srGuarantee === 'boolean') ? p.srGuarantee : true;
+        state.rarities = JSON.parse(JSON.stringify(p.rarities));
+        saveState();
+        syncFormValues();
+        renderPullView();
+        renderSettingsView();
+        alert(`'${name}' 프리셋이 성공적으로 적용되었습니다.`);
+      }
+    }
+
+    function deleteSelectedPreset() {
+      const select = $('select-saved-presets');
+      if (!select) return;
+      const name = select.value;
+      if (!name) return;
+      if (confirm(`'${name}' 프리셋을 삭제하시겠습니까?`)) {
+        const presets = getUserPresets();
+        delete presets[name];
+        saveUserPresets(presets);
+        const info = $('preset-details-info');
+        if (info) info.textContent = '';
+      }
+    }
+
+    // SEED SYSTEM (EXPORT & IMPORT - MAX 20 CHARS COMPACT SEED)
+    function exportCurrentSeed() {
+      try {
+        const seedPayload = {
+          name: '현재 가챠 설정',
+          pity: { ...state.pity },
+          softPity: { ...state.softPity },
+          currency: { ...state.currency },
+          pickUpRate: state.pickUpRate,
+          srGuarantee: state.srGuarantee,
+          rarities: JSON.parse(JSON.stringify(state.rarities))
+        };
+        const seed = generateSeed(seedPayload);
+        const seedInput = $('input-seed-code');
+        if (seedInput) seedInput.value = seed;
+
+        const msg = `🎉 현재 설정의 초단축 시드가 복사되었습니다!\n\n• 시드 코드: ${seed} (${seed.length}자, 최대 20자 이내)\n• 천장: ${state.pity.target}뽑\n• 소모 재화: 1회당 ${state.currency.cost} ${state.currency.unit}\n• 최고등급 확률: ${state.rarities[0].rate}%\n\n누구에게나 이 ${seed.length}자 시드 코드만 공유하면 즉시 동일한 가챠 규칙이 적용됩니다.`;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(seed).then(() => {
+            alert(msg);
+          }).catch(() => {
+            prompt(`초단축 시드 코드 (${seed.length}자, 최대 20자):`, seed);
+          });
+        } else {
+          prompt(`초단축 시드 코드 (${seed.length}자, 최대 20자):`, seed);
+        }
+      } catch (e) {
+        alert('시드 생성 실패: ' + e.message);
+      }
+    }
+
+    function applyEnteredSeed() {
+      const input = $('input-seed-code');
+      if (!input || !input.value.trim()) {
+        alert('적용할 시드 코드를 입력해주세요. (예: G-7OULVF8DP2LFBN2N 또는 원신)');
+        return;
+      }
+      applySeedString(input.value.trim());
+    }
+
+    function promptApplySeed() {
+      const code = prompt('적용할 가챠 시드(최대 20자 초단축 시드 또는 키워드)를 입력하세요:');
+      if (code && code.trim()) {
+        applySeedString(code.trim());
+      }
+    }
+
+    function applyPresetSeed(key) {
+      const p = DETAILED_PRESETS[key];
+      if (!p) return;
+      applyDetailedPreset(key);
+      const seedPayload = {
+        name: p.name,
+        pity: { ...state.pity },
+        softPity: { ...state.softPity },
+        currency: { ...state.currency },
+        pickUpRate: state.pickUpRate,
+        srGuarantee: state.srGuarantee,
+        rarities: JSON.parse(JSON.stringify(state.rarities))
+      };
+      const seed = generateSeed(seedPayload);
+      const input = $('input-seed-code');
+      if (input) input.value = seed;
+      alert(`'${p.name}' 프리셋 시드가 적용되었습니다!\n\n• 초단축 시드: ${seed} (${seed.length}자)\n• 천장: ${state.pity.target}뽑\n• 재화: 1회당 ${state.currency.cost} ${state.currency.unit}`);
+    }
+
+    function applySeedString(seedStr) {
+      try {
+        if (!seedStr || !seedStr.trim()) {
+          alert('시드 코드를 입력해주세요.');
+          return;
+        }
+        const clean = seedStr.trim();
+        const data = parseSeed(clean);
+
+        if (!data || typeof data !== 'object') {
+          throw new Error('시드 데이터 구조가 올바르지 않습니다.');
+        }
+
+        if (data.pity) {
+          state.pity.target = parseInt(data.pity.target, 10) || 80;
+          if (typeof data.pity.resetOnNatural === 'boolean') {
+            state.pity.resetOnNatural = data.pity.resetOnNatural;
+          }
+        }
+
+        if (data.softPity) {
+          state.softPity.start = parseInt(data.softPity.start, 10) || 70;
+          state.softPity.ramp = parseFloat(data.softPity.ramp) || 6.0;
+          state.softPity.enabled = (data.softPity.enabled !== false);
+        }
+
+        if (data.currency) {
+          state.currency.cost = Math.max(1, parseInt(data.currency.cost, 10) || 160);
+          state.currency.unit = (data.currency.unit || '젬').trim() || '젬';
+        }
+
+        if (typeof data.pickUpRate === 'number') {
+          state.pickUpRate = data.pickUpRate;
+        }
+
+        if (typeof data.srGuarantee === 'boolean') {
+          state.srGuarantee = data.srGuarantee;
+        }
+
+        if (Array.isArray(data.rarities) && data.rarities.length > 0) {
+          state.rarities = JSON.parse(JSON.stringify(data.rarities));
+          state.rarities.forEach((r, idx) => {
+            if (!r.id) r.id = 'rarity_' + idx;
+            if (!r.name) r.name = '등급 ' + (idx + 1);
+            r.rate = parseFloat(r.rate) || 0;
+            if (!r.color) r.color = '#3b82f6';
+            if (!Array.isArray(r.items) || r.items.length === 0) {
+              r.items = [{ id: 'item_' + idx, name: `${r.name} 아이템`, img: '', isFeatured: (idx === 0) }];
+            }
+          });
+        }
+
+        saveState();
+        syncFormValues();
+        renderPullView();
+        renderSettingsView();
+        triggerHaptic('medium');
+
+        const input = $('input-seed-code');
+        if (input) input.value = clean;
+
+        alert(`🎉 [${data.name || '시드'}] 설정이 성공적으로 적용되었습니다!\n\n• 입력 시드: ${clean} (${clean.length}자)\n• 천장: ${state.pity.target}회\n• 소모 재화: 1회당 ${state.currency.cost} ${state.currency.unit}\n• 최고등급 확률: ${state.rarities[0].rate}%`);
+      } catch (err) {
+        alert('시드 코드 적용 실패: 유효하지 않은 코드입니다.\n' + err.message);
+      }
+    }
+
+    function exportJSON() {
+      const json = JSON.stringify({ pity: state.pity, softPity: state.softPity, currency: state.currency, pickUpRate: state.pickUpRate, rarities: state.rarities }, null, 2);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(json).then(() => {
+          alert('설정 JSON이 클립보드에 복사되었습니다!');
+        }).catch(() => {
+          prompt('JSON 데이터:', json);
+        });
+      } else {
+        prompt('JSON 데이터:', json);
+      }
+    }
+
+    // ==========================================
+    // ALL RARITY EDITORS
+    // ==========================================
+    function renderSettingsView() {
+      renderPresetDropdown();
+      checkTotalProbability();
+      syncFormValues();
+
+      const container = $('all-rarities-editor-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      state.rarities.forEach((rarity, rIdx) => {
+        const isTop = isTopTierRarity(rarity);
+        const card = document.createElement('div');
+        card.className = `bg-gray-950/90 border ${isTop ? 'border-amber-500/60 shadow-amber-500/10' : 'border-gray-800'} rounded-2xl p-4 sm:p-5 space-y-3.5 shadow-lg transition-all`;
+
+        let itemsHtml = '';
+        (rarity.items || []).forEach((item, iIdx) => {
+          itemsHtml += `
+            <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5 p-2 rounded-xl bg-gray-900 border border-gray-800 text-xs">
+              <img src="${item.img || ''}" class="w-11 h-11 rounded-lg object-cover bg-gray-950 border border-gray-700 flex-shrink-0">
+              
+              <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
+                <input type="text" value="${item.name || ''}" placeholder="아이템 이름" onchange="updateItemField(${rIdx}, ${iIdx}, 'name', this.value)" class="bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1.5 text-white font-medium">
+                <input type="text" value="${item.img || ''}" placeholder="이미지 URL" onchange="updateItemField(${rIdx}, ${iIdx}, 'img', this.value)" class="bg-gray-950 border border-gray-800 rounded-lg px-2.5 py-1.5 text-gray-300">
+              </div>
+
+              <div class="flex items-center space-x-1.5 flex-shrink-0">
+                <label class="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg cursor-pointer text-[11px] font-semibold transition-colors">
+                  📁 사진
+                  <input type="file" accept="image/*" class="hidden" onchange="uploadItemImage(event, ${rIdx}, ${iIdx})">
+                </label>
+
+                ${isTop ? `
+                  <label class="flex items-center space-x-1 text-[11px] text-amber-300 bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/30 cursor-pointer" title="이 아이템을 대표 픽업 캐릭터로 지정">
+                    <input type="checkbox" ${item.isFeatured ? 'checked' : ''} onchange="setFeaturedItem(${rIdx}, ${iIdx}, this.checked)">
+                    <span>픽업</span>
+                  </label>
+                ` : ''}
+
+                <button onclick="deleteItemFromRarity(${rIdx}, ${iIdx})" class="w-7 h-7 rounded-lg bg-rose-950/40 hover:bg-rose-900/70 border border-rose-800/50 text-rose-300 text-xs flex items-center justify-center" title="아이템 삭제">
+                  ✕
+                </button>
+              </div>
+            </div>
+          `;
+        });
+
+        const isFirst = (rIdx === 0);
+        const isLast = (rIdx === state.rarities.length - 1);
+
+        card.innerHTML = `
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-2.5">
+            <div class="flex items-center space-x-2">
+              <!-- Reorder Position Controls -->
+              <div class="flex items-center space-x-0.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
+                <button onclick="moveRarity(${rIdx}, -1)" ${isFirst ? 'disabled class="opacity-20 cursor-not-allowed px-1.5 py-0.5 text-xs text-gray-400"' : 'class="px-1.5 py-0.5 text-xs text-purple-300 hover:bg-purple-900/50 rounded active:scale-95"'} title="위로 순서 이동">
+                  ▲
+                </button>
+                <span class="text-[11px] font-bold text-gray-300 px-1">#${rIdx + 1}</span>
+                <button onclick="moveRarity(${rIdx}, 1)" ${isLast ? 'disabled class="opacity-20 cursor-not-allowed px-1.5 py-0.5 text-xs text-gray-400"' : 'class="px-1.5 py-0.5 text-xs text-purple-300 hover:bg-purple-900/50 rounded active:scale-95"'} title="아래로 순서 이동">
+                  ▼
+                </button>
+              </div>
+
+              <input type="color" value="${rarity.color || '#3b82f6'}" onchange="updateRarityCategory(${rIdx}, 'color', this.value)" class="w-7 h-7 rounded-lg bg-transparent border-0 cursor-pointer" title="등급 색상">
+              <input type="text" value="${rarity.name || ''}" placeholder="등급명" onchange="updateRarityCategory(${rIdx}, 'name', this.value)" class="bg-gray-900 border border-gray-700 rounded-lg px-2 py-1 text-sm font-bold text-white w-24">
+            </div>
+
+            <div class="flex items-center space-x-2 flex-wrap sm:flex-nowrap">
+              <!-- Top Tier Multi-Selection Toggle -->
+              <button onclick="toggleRarityTopTier(${rIdx})" class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center space-x-1 ${isTop ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-md shadow-amber-500/25 ring-1 ring-amber-400 active:scale-95' : 'bg-gray-900 hover:bg-gray-800 text-gray-400 border border-gray-700 active:scale-95'}" title="이 등급을 최고등급(천장 대상)으로 지정/해제">
+                <span>👑</span>
+                <span>${isTop ? '최고등급 [ON]' : '최고등급 [OFF]'}</span>
+              </button>
+
+              <div class="flex items-center space-x-1 text-xs bg-gray-900 px-2 py-1 rounded-lg border border-gray-800">
+                <span class="text-gray-400">확률:</span>
+                <input type="number" step="0.05" min="0" max="100" value="${rarity.rate}" onchange="updateRarityCategory(${rIdx}, 'rate', parseFloat(this.value) || 0)" class="bg-gray-950 border border-gray-700 rounded-lg px-2 py-0.5 text-xs font-bold text-yellow-400 w-20 text-right">
+                <span class="text-gray-400">%</span>
+              </div>
+
+              <button onclick="deleteRarityCategory(${rIdx})" class="px-2.5 py-1 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/50 text-rose-300 text-xs rounded-lg active:scale-95" title="등급 삭제">
+                삭제
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-gray-300">소속 아이템 목록 (${(rarity.items || []).length}개)</span>
+              <button onclick="addItemToRarity(${rIdx})" class="px-2.5 py-1 bg-gray-900 hover:bg-gray-800 text-[11px] font-bold text-purple-300 border border-purple-500/40 rounded-lg active:scale-95">
+                + 아이템 추가
+              </button>
+            </div>
+            <div class="space-y-1.5">${itemsHtml}</div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function updateRarityCategory(rIdx, field, val) {
+      state.rarities[rIdx][field] = val;
+      saveState();
+      checkTotalProbability();
+      renderPullView();
+    }
+
+    function checkTotalProbability() {
+      const sum = state.rarities.reduce((s, r) => s + (parseFloat(r.rate) || 0), 0);
+      safeText('prob-total-value', `${sum.toFixed(2)}%`);
+    }
+
+    function addNewRarityCategory() {
+      state.rarities.push({
+        id: 'rarity_' + Date.now(),
+        name: 'NEW',
+        rate: 0.0,
+        color: '#10b981',
+        isTopTier: false,
+        items: [
+          { id: 'item_' + Date.now(), name: '신규 캐릭터', img: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=400&q=80', isFeatured: false }
+        ]
+      });
+      saveState();
+      renderSettingsView();
+      renderPullView();
+    }
+
+    function deleteRarityCategory(rIdx) {
+      if (state.rarities.length <= 1) {
+        alert('최소 1개 이상의 등급이 존재해야 합니다.');
+        return;
+      }
+      const rarity = state.rarities[rIdx];
+      const isTop = isTopTierRarity(rarity);
+      const otherTops = state.rarities.filter((r, idx) => idx !== rIdx && isTopTierRarity(r));
+
+      if (isTop && otherTops.length === 0) {
+        alert(`'${rarity.name}' 등급은 현재 유일한 최고등급(👑)입니다.\n등급을 삭제하려면 먼저 다른 등급을 최고등급으로 지정해 주세요.`);
+        return;
+      }
+
+      if (confirm(`'${rarity.name}' 등급을 삭제하시겠습니까?`)) {
+        state.rarities.splice(rIdx, 1);
+        saveState();
+        renderSettingsView();
+        renderPullView();
+      }
+    }
+
+    function addItemToRarity(rIdx) {
+      const rarity = state.rarities[rIdx];
+      rarity.items.push({
+        id: 'item_' + Date.now(),
+        name: `신규 ${rarity.name} 아이템`,
+        img: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=400&q=80',
+        isFeatured: false
+      });
+      saveState();
+      renderSettingsView();
+      renderPullView();
+    }
+
+    function deleteItemFromRarity(rIdx, iIdx) {
+      state.rarities[rIdx].items.splice(iIdx, 1);
+      saveState();
+      renderSettingsView();
+      renderPullView();
+    }
+
+    function updateItemField(rIdx, iIdx, field, val) {
+      state.rarities[rIdx].items[iIdx][field] = val;
+      saveState();
+      renderPullView();
+    }
+
+    function setFeaturedItem(rIdx, iIdx, checked) {
+      state.rarities.forEach((r, r_i) => {
+        (r.items || []).forEach((it, i_i) => {
+          if (r_i === rIdx && i_i === iIdx) {
+            it.isFeatured = checked;
+          } else if (checked) {
+            it.isFeatured = false;
+          }
+        });
+      });
+      saveState();
+      renderSettingsView();
+      renderPullView();
+    }
+
+    function uploadItemImage(e, rIdx, iIdx) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 320;
+          let w = img.width;
+          let h = img.height;
+          if (w > h) {
+            if (w > maxDim) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            }
+          } else {
+            if (h > maxDim) {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL('image/jpeg', 0.8);
+          state.rarities[rIdx].items[iIdx].img = compressed;
+          saveState();
+          renderSettingsView();
+          renderPullView();
+        };
+        img.onerror = () => {
+          state.rarities[rIdx].items[iIdx].img = ev.target.result;
+          saveState();
+          renderSettingsView();
+          renderPullView();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function toggleGuaranteeState() {
+      state.pity.isGuaranteedPickup = !state.pity.isGuaranteedPickup;
+      saveState();
+      syncFormValues();
+      renderPullView();
+    }
+
+    // ==========================================
+    // PULL ENGINE
+    // ==========================================
+    function getFeaturedItem() {
+      const top = state.rarities[0];
+      if (!top || !top.items || top.items.length === 0) {
+        return { name: '픽업 캐릭터', img: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80', isFeatured: true };
+      }
+      return top.items.find(i => i.isFeatured) || top.items[0];
+    }
+
+    function getEffectiveTopRate() {
+      const topRarity = state.rarities[0];
+      let rate = parseFloat(topRarity ? topRarity.rate : 1.0) || 1.0;
+      if (state.softPity.enabled && state.pity.count >= state.softPity.start) {
+        const extra = state.pity.count - state.softPity.start + 1;
+        rate = Math.min(100, rate + extra * state.softPity.ramp);
+      }
+      return rate;
+    }
+
+    function renderPullView() {
+      const feat = getFeaturedItem();
+      const imgEl = $('banner-img');
+      const nameEl = $('banner-name');
+      if (imgEl) imgEl.src = feat.img || '';
+      if (nameEl) nameEl.textContent = feat.name || '픽업 캐릭터';
+
+      safeText('cfg-pity-target-num', state.pity.target);
+      safeText('banner-pity-target-display', state.pity.target);
+      safeText('pity-max', state.pity.target);
+      safeText('pity-val', state.pity.count);
+      safeText('banner-top-badge', state.rarities[0] ? state.rarities[0].name : 'SSR');
+
+      const effRate = getEffectiveTopRate();
+      safeText('banner-rate-display', `${(parseFloat(state.rarities[0].rate) || 1).toFixed(2)}%`);
+      
+      const softBadge = $('soft-pity-live-badge');
+      if (softBadge) {
+        if (state.softPity.enabled && state.pity.count >= state.softPity.start) {
+          softBadge.textContent = `(🔥 소프트 천장 발동: 현재 ${effRate.toFixed(1)}%)`;
+        } else {
+          softBadge.textContent = '';
+        }
+      }
+
+      const pct = Math.min(100, (state.pity.count / state.pity.target) * 100);
+      const pityBar = $('pity-bar');
+      if (pityBar) pityBar.style.width = `${pct}%`;
+
+      const rem = Math.max(0, state.pity.target - state.pity.count);
+      safeText('pity-rem-count', `${rem}회 남음`);
+
+      // Currency Calculations for Buttons & Stats
+      const cost1 = state.currency.cost;
+      const cost10 = state.currency.cost * 10;
+      const remPity = Math.max(1, rem);
+      const costPity = state.currency.cost * remPity;
+
+      safeText('btn-pull-1-cost', `${cost1.toLocaleString()}${state.currency.unit}`);
+      safeText('btn-pull-10-cost', `${cost10.toLocaleString()}${state.currency.unit}`);
+      safeText('btn-pull-pity-cost', `${costPity.toLocaleString()}${state.currency.unit}`);
+      safeText('btn-pull-until-pity-text', `천장까지 (${remPity}회)`);
+
+      const totalSpent = (state.stats.total || 0) * state.currency.cost;
+      safeText('stat-total-currency', `${totalSpent.toLocaleString()} ${state.currency.unit}`);
+
+      const indBox = $('pity-loop-indicator');
+      const indTitle = $('pity-indicator-title');
+      const indBadge = $('pity-indicator-badge');
+      const indDesc = $('pity-indicator-desc');
+      const indIcon = $('pity-indicator-icon');
+      const bannerTag = $('banner-pity-status-tag');
+
+      if (state.pity.isGuaranteedPickup) {
+        if (indBox) indBox.className = 'p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-all bg-emerald-950/40 border-emerald-500/50 text-emerald-300 animate-pulse';
+        if (indIcon) indIcon.textContent = '🌟';
+        if (indTitle) indTitle.textContent = '현재 상태: 2차 확정 천장 (100% 픽업 확천)';
+        if (indBadge) {
+          indBadge.textContent = '100% 확천 보장';
+          indBadge.className = 'text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/30 border border-emerald-500 text-emerald-200 font-bold';
+        }
+        if (indDesc) indDesc.innerHTML = `직전 천장에서 픽뚫을 겪었으므로, 이번 <strong class="text-white">${state.pity.target}뽑 천장</strong> 도달 시 <strong>100% 픽업 [${feat.name}]</strong>을 획득합니다!`;
+        if (bannerTag) {
+          bannerTag.textContent = '🌟 100% 픽업 확정 소환 가능!';
+          bannerTag.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse';
+        }
+      } else {
+        if (indBox) indBox.className = 'p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 transition-all bg-amber-950/30 border-amber-500/40 text-amber-300';
+        if (indIcon) indIcon.textContent = '🎲';
+        if (indTitle) indTitle.textContent = '현재 상태: 1차 반천장 (50:50 승부 대기)';
+        if (indBadge) {
+          indBadge.textContent = `${state.pickUpRate}% 승률`;
+          indBadge.className = 'text-[9px] px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-200 font-bold';
+        }
+        if (indDesc) indDesc.innerHTML = `<strong class="text-white">${state.pity.target}뽑</strong> 도달 시 최고등급 확정 (이 중 ${state.pickUpRate}% 확률로 픽업 캐릭터 획득)`;
+        if (bannerTag) {
+          bannerTag.textContent = `${state.pickUpRate}% 반천장 도전 중`;
+          bannerTag.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        }
+      }
+
+      // Quick Rarity Pills
+      const pillsContainer = $('quick-rarity-pills');
+      if (pillsContainer) {
+        pillsContainer.innerHTML = '';
+        state.rarities.forEach(r => {
+          const pill = document.createElement('span');
+          pill.className = 'inline-flex items-center space-x-1 text-[11px] px-2.5 py-0.5 rounded-lg border font-medium';
+          pill.style.borderColor = `${r.color}55`;
+          pill.style.backgroundColor = `${r.color}15`;
+          pill.style.color = r.color;
+          pill.innerHTML = `<span>● ${r.name}</span><span class="opacity-80">(${r.rate}%)</span>`;
+          pillsContainer.appendChild(pill);
+        });
+      }
+
+      // Quick Stats
+      safeText('stat-total-pulls', `${(state.stats.total || 0).toLocaleString()}회`);
+      safeText('stat-pickup-count', `${(state.stats.pickupWins || 0).toLocaleString()}회`);
+
+      // Mini breakdown
+      const breakdownMini = $('stat-rarity-breakdown-mini');
+      if (breakdownMini) {
+        breakdownMini.innerHTML = '';
+        state.rarities.forEach(r => {
+          const count = (r.id === 'ssr') ? (state.stats.pickupWins + state.stats.pickupLosses + state.stats.guaranteedWins) : 0;
+          const actualRate = state.stats.total > 0 ? ((count / state.stats.total) * 100).toFixed(2) : '0.00';
+          const row = document.createElement('div');
+          row.className = 'space-y-1';
+          row.innerHTML = `
+            <div class="flex justify-between text-[11px]">
+              <span style="color: ${r.color}" class="font-bold">${r.name}</span>
+              <span class="text-gray-400">${count}개 (${actualRate}%)</span>
+            </div>
+            <div class="w-full bg-gray-900 h-1.5 rounded-full overflow-hidden">
+              <div class="h-full rounded-full" style="width: ${Math.min(100, actualRate)}%; background-color: ${r.color}"></div>
+            </div>
+          `;
+          breakdownMini.appendChild(row);
+        });
+      }
+
+      // Recent log
+      const logsContainer = $('recent-logs');
+      if (logsContainer) {
+        if (!state.stats.history || state.stats.history.length === 0) {
+          logsContainer.innerHTML = '<p class="text-gray-500 text-center py-8 text-xs">아직 소환 기록이 없습니다.</p>';
+        } else {
+          logsContainer.innerHTML = state.stats.history.slice(0, 25).map(h => `
+            <div class="flex items-center justify-between p-1.5 rounded-xl bg-gray-900/80 border border-gray-800 text-[11px]">
+              <div class="flex items-center space-x-2">
+                <span class="px-1.5 py-0.2 rounded font-bold text-[9px]" style="background-color: ${h.color}30; color: ${h.color}">${h.rarity}</span>
+                <span class="text-white font-medium">${h.name}</span>
+                ${h.pityEvent ? `<span class="text-[9px] font-bold px-1.5 py-0.2 rounded ${h.pityEvent.isWin ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">${h.pityEvent.label}</span>` : ''}
+              </div>
+              <span class="text-gray-500 text-[10px]">${safeTime(h.time)}</span>
+            </div>
+          `).join('');
+        }
+      }
+    }
+
+    function jumpToStack(targetStack) {
+      triggerHaptic('medium');
+      state.pity.count = Math.max(0, targetStack);
+      saveState();
+      renderPullView();
+    }
+
+    // Single Pull Logic
+    function pullOne(forceMinSR = false) {
+      if (!state.stats) state.stats = {};
+      state.stats.total = (state.stats.total || 0) + 1;
+      if (!state.pity) state.pity = { target: 80, count: 0, isGuaranteedPickup: false, resetOnNatural: true };
+      state.pity.count = (state.pity.count || 0) + 1;
+
+      let isHardPityHit = false;
+      let selectedRarity = null;
+      const topRarity = (state.rarities && state.rarities[0]) || { id: 'ssr', name: 'SSR', rate: 1.0, color: '#f59e0b' };
+
+      if (state.pity.count >= state.pity.target) {
+        isHardPityHit = true;
+        selectedRarity = topRarity;
+        state.pity.count = 0;
+        state.stats.pityHits = (state.stats.pityHits || 0) + 1;
+      } else {
+        const effTopRate = getEffectiveTopRate();
+        const rand = Math.random() * 100;
+
+        if (rand < effTopRate) {
+          selectedRarity = topRarity;
+          if (state.pity.resetOnNatural) state.pity.count = 0;
+        } else {
+          if (forceMinSR && state.rarities.length >= 2) {
+            selectedRarity = state.rarities[1]; // Guaranteed SR
+          } else {
+            let cum = effTopRate;
+            const others = state.rarities.slice(1);
+            const otherSum = others.reduce((s, r) => s + (parseFloat(r.rate) || 0), 0) || 99.0;
+            const rem = Math.max(0, 100 - effTopRate);
+
+            for (const r of others) {
+              cum += ((parseFloat(r.rate) || 0) / otherSum) * rem;
+              if (rand <= cum) {
+                selectedRarity = r;
+                break;
+              }
+            }
+            if (!selectedRarity) selectedRarity = state.rarities[state.rarities.length - 1];
+          }
+        }
+      }
+      if (!selectedRarity) selectedRarity = topRarity;
+
+      let chosenItem = null;
+      let pityEvent = null;
+
+      const isTopHit = (selectedRarity === topRarity || selectedRarity.id === topRarity.id || selectedRarity.name === topRarity.name);
+
+      if (isTopHit) {
+        triggerHaptic('ssr');
+        const featItem = getFeaturedItem();
+        const standardItems = (topRarity.items || []).filter(i => !i.isFeatured);
+
+        if (state.pity.isGuaranteedPickup) {
+          chosenItem = featItem;
+          state.pity.isGuaranteedPickup = false;
+          state.stats.guaranteedWins = (state.stats.guaranteedWins || 0) + 1;
+          pityEvent = {
+            isWin: true,
+            label: isHardPityHit ? '👑 천장 확천 픽업!' : '✨ 자연 확천 픽업!',
+            detail: '직전 픽뚫 보상으로 100% 픽업 획득 성공!'
+          };
+        } else {
+          const roll = Math.random() * 100;
+          if (roll < state.pickUpRate || standardItems.length === 0) {
+            chosenItem = featItem;
+            state.stats.pickupWins = (state.stats.pickupWins || 0) + 1;
+            pityEvent = {
+              isWin: true,
+              label: isHardPityHit ? '🎉 반천장 승리!' : '🎉 50:50 승리 (자연 당첨)',
+              detail: `확률을 뚫고 픽업 [${featItem.name}] 획득 성공!`
+            };
+          } else {
+            chosenItem = standardItems[Math.floor(Math.random() * standardItems.length)] || featItem;
+            state.pity.isGuaranteedPickup = true;
+            state.stats.pickupLosses = (state.stats.pickupLosses || 0) + 1;
+            pityEvent = {
+              isWin: false,
+              label: isHardPityHit ? '💔 픽뚫 발생!' : '💔 픽뚫 발생 (자연 당첨)',
+              detail: `상시 [${chosenItem.name}] 등장 ➔ 다음 천장은 100% 픽업 확정!`
+            };
+          }
+        }
+
+        if (!Array.isArray(state.stats.pityLog)) state.stats.pityLog = [];
+        state.stats.pityLog.unshift({
+          pullNo: state.stats.total,
+          isHardPity: isHardPityHit,
+          itemName: chosenItem.name || '최고등급 아이템',
+          isFeatured: !!chosenItem.isFeatured,
+          outcome: pityEvent.label,
+          time: Date.now()
+        });
+
+      } else {
+        const items = selectedRarity.items || [];
+        chosenItem = items.length > 0
+          ? items[Math.floor(Math.random() * items.length)]
+          : { name: `${selectedRarity.name} 아이템`, img: 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=400&q=80', isFeatured: false };
+      }
+
+      if (!chosenItem) {
+        chosenItem = { name: '아이템', img: 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=400&q=80', isFeatured: false };
+      }
+
+      if (!state.stats.itemCounts) state.stats.itemCounts = {};
+      const itemName = chosenItem.name || '아이템';
+      state.stats.itemCounts[itemName] = (state.stats.itemCounts[itemName] || 0) + 1;
+
+      const pullResult = {
+        name: itemName,
+        img: chosenItem.img || 'https://images.unsplash.com/photo-1595590424283-b8f17842773f?auto=format&fit=crop&w=400&q=80',
+        rarity: selectedRarity.name || 'R',
+        color: selectedRarity.color || '#3b82f6',
+        isFeatured: !!chosenItem.isFeatured,
+        isHardPity: isHardPityHit,
+        pityEvent: pityEvent,
+        time: Date.now()
+      };
+
+      if (!Array.isArray(state.stats.history)) state.stats.history = [];
+      state.stats.history.unshift(pullResult);
+      if (state.stats.history.length > 200) state.stats.history.pop();
+
+      return pullResult;
+    }
+
+    // ==========================================
+    // FULLSCREEN RESULT MODAL (화면 중앙 팝업 연출)
+    // ==========================================
+    function executeGacha(count) {
+      try {
+        const pullNum = parseInt(count, 10) || 1;
+        lastPullCount = pullNum;
+        triggerHaptic('medium');
+
+        const results = [];
+        for (let i = 0; i < pullNum; i++) {
+          const isTenth = (pullNum === 10 && i === 9 && state.srGuarantee);
+          const hasHitSRorSSR = results.some(r => r.rarity === 'SSR' || r.rarity === 'SR');
+          const forceMinSR = isTenth && !hasHitSRorSSR;
+          results.push(pullOne(forceMinSR));
+        }
+
+        saveState();
+        renderPullView();
+        showPullModal(results, pullNum);
+      } catch (err) {
+        console.error('executeGacha error:', err);
+        alert('소환 실행 중 오류가 발생했습니다: ' + err.message);
+      }
+    }
+
+    function executePullUntilPity() {
+      const rem = Math.max(1, state.pity.target - state.pity.count);
+      executeGacha(rem);
+    }
+
+    function repeatLastGacha() {
+      closePullModal();
+      setTimeout(() => {
+        executeGacha(lastPullCount);
+      }, 300);
+    }
+
+    function showPullModal(results, count) {
+      try {
+        const modal = $('pull-result-modal');
+        const grid = $('modal-cards-grid');
+        const typeBadge = $('modal-pull-type-badge');
+        const ssrBadge = $('modal-ssr-count-badge');
+        const verdictBox = $('modal-verdict-box');
+
+        if (!modal || !grid) return;
+
+        const totalCost = count * state.currency.cost;
+        if (typeBadge) typeBadge.textContent = `${count}회 소환 결과 (${totalCost.toLocaleString()}${state.currency.unit})`;
+        grid.innerHTML = '';
+
+        const ssrCount = results.filter(r => r.rarity === 'SSR' || r.isHardPity).length;
+        if (ssrBadge) {
+          if (ssrCount > 0) {
+            ssrBadge.textContent = `⭐ SSR ${ssrCount}개 획득!`;
+            ssrBadge.classList.remove('hidden');
+          } else {
+            ssrBadge.classList.add('hidden');
+          }
+        }
+
+        // Check for Pity Event in Results
+        const topResult = results.find(r => r.pityEvent);
+        if (verdictBox) {
+          if (topResult && topResult.pityEvent) {
+            verdictBox.classList.remove('hidden');
+            if (topResult.pityEvent.isWin) {
+              verdictBox.className = 'p-3 rounded-2xl border text-xs sm:text-sm mb-3 z-10 flex items-center justify-between bg-emerald-950/70 border-emerald-500/50 text-emerald-300';
+              verdictBox.innerHTML = `
+                <div class="flex items-center space-x-2">
+                  <span class="text-xl">🎉</span>
+                  <div>
+                    <strong class="font-extrabold text-sm sm:text-base">${topResult.pityEvent.label}</strong>
+                    <p class="text-xs text-emerald-200">${topResult.pityEvent.detail}</p>
+                  </div>
+                </div>
+                <span class="px-2 py-0.5 rounded-xl bg-emerald-500/20 text-emerald-300 font-extrabold text-xs border border-emerald-500/40">WIN</span>
+              `;
+            } else {
+              verdictBox.className = 'p-3 rounded-2xl border text-xs sm:text-sm mb-3 z-10 flex items-center justify-between bg-rose-950/70 border-rose-500/50 text-rose-300';
+              verdictBox.innerHTML = `
+                <div class="flex items-center space-x-2">
+                  <span class="text-xl">💔</span>
+                  <div>
+                    <strong class="font-extrabold text-sm sm:text-base">${topResult.pityEvent.label}</strong>
+                    <p class="text-xs text-rose-200">${topResult.pityEvent.detail}</p>
+                  </div>
+                </div>
+                <span class="px-2 py-0.5 rounded-xl bg-rose-500/20 text-rose-300 font-extrabold text-xs border border-rose-500/40">확천 가동</span>
+              `;
+            }
+          } else {
+            verdictBox.classList.add('hidden');
+          }
+        }
+
+        // Populate Cards in Modal
+        results.forEach((item, idx) => {
+          const card = document.createElement('div');
+          card.className = 'relative rounded-2xl overflow-hidden h-40 sm:h-48 flex flex-col justify-between p-2.5 shadow-lg border';
+          card.style.borderColor = `${item.color || '#3b82f6'}80`;
+          card.style.background = '#090d16';
+
+          card.innerHTML = `
+            <!-- Full Art Background Image -->
+            <img src="${item.img || ''}" class="absolute inset-0 w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/30 to-black/60"></div>
+
+            <!-- Top Badge -->
+            <div class="relative z-10 flex justify-between items-start">
+              <span class="text-[9px] font-black px-1.5 py-0.2 rounded shadow" style="background-color: ${item.color || '#f59e0b'}; color: #000">
+                ${item.rarity || 'SSR'}
+              </span>
+              <div class="flex flex-col items-end gap-0.5">
+                ${item.isFeatured ? '<span class="text-[8px] font-black px-1.5 py-0.2 rounded bg-amber-400 text-black shadow animate-pulse">PICKUP</span>' : ''}
+                ${item.isHardPity ? '<span class="text-[8px] font-bold px-1 rounded bg-purple-600 text-white">천장</span>' : ''}
+              </div>
+            </div>
+
+            <!-- Bottom Info -->
+            <div class="relative z-10 space-y-0.2">
+              <p class="text-xs font-black text-white truncate drop-shadow">${item.name || '아이템'}</p>
+              <span class="text-[9px] text-gray-300">#${idx + 1}</span>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+
+        // Show Modal with Animation & Explicit Display
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        setTimeout(() => {
+          modal.classList.remove('opacity-0');
+        }, 10);
+      } catch (err) {
+        console.error('showPullModal error:', err);
+      }
+    }
+
+    function closePullModal() {
+      const modal = $('pull-result-modal');
+      if (!modal) return;
+      modal.classList.add('opacity-0');
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }, 250);
+    }
+
+    function resetStatsConfirm() {
+      if (confirm('모든 소환 통계를 초기화하시겠습니까?')) {
+        state.stats = {
+          total: 0,
+          pickupWins: 0,
+          pickupLosses: 0,
+          guaranteedWins: 0,
+          pityHits: 0,
+          pityLog: [],
+          itemCounts: {},
+          history: []
+        };
+        state.pity.isGuaranteedPickup = false;
+        saveState();
+        renderPullView();
+      }
+    }
+
+    // ==========================================
+    // STATS VIEW
+    // ==========================================
+    function renderStatsView() {
+      safeText('stats-page-total-pulls', `${(state.stats.total || 0).toLocaleString()}회`);
+      
+      const totalSpent = (state.stats.total || 0) * state.currency.cost;
+      safeText('stats-page-total-currency', `${totalSpent.toLocaleString()}${state.currency.unit}`);
+
+      safeText('stats-page-pickup-wins', `${state.stats.pickupWins || 0}회`);
+      safeText('stats-page-pickup-losses', `${state.stats.pickupLosses || 0}회`);
+      safeText('stats-page-guaranteed-wins', `${state.stats.guaranteedWins || 0}회`);
+
+      const tableContainer = $('stats-comparison-table-container');
+      if (tableContainer) {
+        let tableHTML = `
+          <table class="w-full text-left">
+            <thead class="bg-gray-900/90 uppercase text-[11px] text-gray-400 border-b border-gray-800">
+              <tr>
+                <th class="py-2 px-3">등급</th>
+                <th class="py-2 px-3">기본 확률</th>
+                <th class="py-2 px-3">획득 수</th>
+                <th class="py-2 px-3">실제 획득률</th>
+                <th class="py-2 px-3">오차(Δ)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800/60">
+        `;
+
+        state.rarities.forEach(r => {
+          const count = (r.id === 'ssr') ? (state.stats.pickupWins + state.stats.pickupLosses + state.stats.guaranteedWins) : 0;
+          const actualRate = state.stats.total > 0 ? (count / state.stats.total) * 100 : 0;
+          const diff = actualRate - r.rate;
+          const diffClass = diff > 0 ? 'text-emerald-400' : (diff < 0 ? 'text-rose-400' : 'text-gray-400');
+          const diffSign = diff > 0 ? '+' : '';
+
+          tableHTML += `
+            <tr class="hover:bg-gray-900/40">
+              <td class="py-2 px-3 font-bold" style="color: ${r.color}">● ${r.name}</td>
+              <td class="py-2 px-3">${r.rate}%</td>
+              <td class="py-2 px-3 text-white font-medium">${count}회</td>
+              <td class="py-2 px-3 text-white font-bold">${actualRate.toFixed(2)}%</td>
+              <td class="py-2 px-3 font-mono ${diffClass}">${diffSign}${diff.toFixed(2)}%</td>
+            </tr>
+          `;
+        });
+        tableHTML += `</tbody></table>`;
+        tableContainer.innerHTML = tableHTML;
+      }
+
+      const histTable = $('pity-history-table');
+      if (histTable) {
+        if (!state.stats.pityLog || state.stats.pityLog.length === 0) {
+          histTable.innerHTML = '<p class="text-gray-500 text-center py-5 text-xs">아직 최고등급 소환 기록이 없습니다.</p>';
+        } else {
+          histTable.innerHTML = `
+            <table class="w-full text-left">
+              <thead class="border-b border-gray-800 text-gray-400 text-[10px]">
+                <tr><th class="py-1.5">회차</th><th>방식</th><th>캐릭터</th><th>결과</th></tr>
+              </thead>
+              <tbody class="divide-y divide-gray-800/60">
+                ${state.stats.pityLog.map(p => `
+                  <tr>
+                    <td class="py-1.5 font-mono text-gray-400">#${p.pullNo}</td>
+                    <td>${p.isHardPity ? '<span class="text-purple-400 font-bold">[천장]</span>' : '<span class="text-gray-400">[자연]</span>'}</td>
+                    <td class="text-white font-bold truncate max-w-[90px]">${p.itemName}</td>
+                    <td><span class="${p.isFeatured ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}">${p.outcome}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `;
+        }
+      }
+
+      const grid = $('gallery-grid');
+      const gTag = $('gallery-count-tag');
+      const totalItems = Object.values(state.stats.itemCounts || {}).reduce((a, b) => a + b, 0);
+      if (gTag) gTag.textContent = `총 ${totalItems.toLocaleString()}개 획득`;
+
+      if (grid) {
+        if (!state.stats.itemCounts || Object.keys(state.stats.itemCounts).length === 0) {
+          grid.innerHTML = '<p class="col-span-full text-center text-gray-500 py-8 text-xs">보유한 캐릭터/아이템이 없습니다.</p>';
+        } else {
+          grid.innerHTML = Object.entries(state.stats.itemCounts).map(([name, count]) => {
+            let matchRarity = null;
+            let matchItem = null;
+            for (const r of state.rarities) {
+              const it = (r.items || []).find(i => i.name === name);
+              if (it) { matchRarity = r; matchItem = it; break; }
+            }
+            const img = matchItem ? matchItem.img : '';
+            const color = matchRarity ? matchRarity.color : '#818cf8';
+
+            return `
+              <div class="relative rounded-2xl overflow-hidden bg-gray-950 border h-36 flex flex-col justify-end p-2 shadow-md" style="border-color: ${color}50">
+                <img src="${img}" class="absolute inset-0 w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent"></div>
+                <span class="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-gray-900 text-white border border-gray-700 shadow">x${count}</span>
+                <div class="relative z-10">
+                  <span class="text-[8px] font-black px-1 rounded" style="background-color: ${color}; color: #000">${matchRarity ? matchRarity.name : ''}</span>
+                  <p class="text-[11px] font-bold text-white truncate drop-shadow mt-0.5">${name}</p>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    // Init
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        syncFormValues();
+        renderPullView();
+      } catch (err) {
+        console.error('Init error:', err);
+      }
+    });
+  </script>
+</body>
+</html>
